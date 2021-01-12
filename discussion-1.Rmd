@@ -133,6 +133,9 @@ data is `survival`.
 library(survival)
 ```
 
+- `survival::survfit`: fit Kaplan-Meier curves (more later in the course)
+- `survminer::ggsurvplot` or `GGally::ggsurv`: an alternative way to plot a `survfit` result for ggplot2 enthusiasts, both take a `survfit` object
+
 ## Survival Data
 
 ```{r}
@@ -216,3 +219,27 @@ head(df)
 surv <- Surv(time=df$time, event=df$event)
 plot(surv)
 ```
+
+## High-level Overview of Other Concepts
+
+- Risk sets at time $t$: who has not yet had the event or been censored by time $t$?
+
+- The relationships between survival, density, hazard, etc.
+
+- Fitting a parametric distribution (e.g. exponential, Weibull) to survival data based on maximum likelihood, with different contributions from censored and un-censored observations
+
+## Discussion Feedback
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Discussion Feedback
+
+<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/WESRQefjF9zLIQjxQcry0?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
+## Material Feedback
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Material Feedback
+
+<iframe src="https://embed.polleverywhere.com/free_text_polls/VBaScoepuOwR3JO5hlx6y?controls=none&short_poll=true" width="800px" height="600px"></iframe>
