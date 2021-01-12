@@ -1,9 +1,10 @@
 ---
 title: 'Discussion 1: Censoring, Truncation, and R'
+subtitle: 'BIOST 537'
 author: "Marlena Bannick"
 output:
-  ioslides_presentation: default
   beamer_presentation: default
+  ioslides_presentation: default
 ---
 
 ```{r setup, include=FALSE}
@@ -24,6 +25,16 @@ The outline for these discussion sections (led by me) will generally be:
 - Recognize the difference between censoring and truncation
 - Learn how to create survival data sets and survival plots in R
 
+## Slides
+
+- Slides are available on Canvas
+- RMarkdown can be checked out via GitHub
+
+```{sh, eval=F}
+git clone
+ https://github.com/mbannick/survival-discussion-section.git
+```
+
 ## Poll Everywhere
 
 We will use Poll Everywhere to take some quick anonymous polls
@@ -39,12 +50,7 @@ to stay engaged!
 
 ## First Poll
 
-<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/6fxdePiOwUhVB9NGmMjjS?controls=none&short_poll=true" width="800px" height="600px"></iframe>
-
-## Slides
-
-- Slides are available on Canvas
-- RMarkdown can be checked out via GitHub
+<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/DKjjdclH3Mwn4rtYLTfcf?controls=none&short_poll=true" width="800px" height="600px"></iframe>
 
 ## Review: Survival Data
 
@@ -63,6 +69,14 @@ What makes survival data especially tricky is that we commonly see:
 
 ## Review: Censoring
 
+Data can be left censored, right censored, or interval censored. In this course, we mainly focus on *right censored* data. It is incredibly common in survival data.
+
+- **Right censoring**: When all you know about the event time is that it is beyond some time point (e.g. you will not observe the event for some individuals)
+- **Left censoring**: When all you know about the event time is that it is before some time point (e.g. some have already had the event when they enter the study)
+- **Interval censoring**: When all you know about the event time is that it is in between two time points (e.g. testing negative at one visit and positive at the next)
+
+## Review: Censoring
+
 <iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
 
 ## Review: Censoring
@@ -70,6 +84,16 @@ What makes survival data especially tricky is that we commonly see:
 <iframe src="https://embed.polleverywhere.com/multiple_choice_polls/Ur42wscWUZSu1TKv0wobZ?controls=none&short_poll=true" width="800px" height="600px"></iframe>
 
 ## Review: Non-informative Censoring
+
+There are techniques in survival analysis to account for censoring, such that the estimates of survival (through Kaplan-Meier, more later) or parameter estimation, are unbiased.
+
+However, these methods require that the censoring is *non-informative*.
+
+- **From lecture**: An individual who is censored is no more or less likely to experience the event in the immediate future than an individual who is not censored.
+
+In other words, if an individual is censored, this should not give you any hints about whether or not they will experience the event sooner or later than anyone else.
+
+## Review: Non-informative censoring
 
 <iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
 
@@ -79,11 +103,26 @@ What makes survival data especially tricky is that we commonly see:
 
 ## Review: Truncation
 
+Truncation occurs when an individual's time to event excludes them from being included in the sample.
+
+This can happen when the time to event is too small, e.g. the terminating event happened before the study could enroll someone (left truncation).
+
+This can happen when the time to event is too large, e.g. a retrospective study selects only individuals for which the terminating event has happened already (right truncation).
+
+## Review: Truncation
+
 <iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
 
 ## Review: Truncation
 
 <iframe src="https://embed.polleverywhere.com/multiple_choice_polls/DFoOuA31D1t6Brzlf6Gng?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
+## Review: Truncation versus Censoring
+
+The fundamental difference between truncation and censoring is in who is included in the study.
+
+- **Truncation induces selection bias**: because of their event time, individuals didn't even make it into the study.
+- **Censoring is incomplete information**: for the individuals that did make it into the study, we know something about their event time (e.g. after some point), but don't know it precisely.
 
 ## Survival Packages
 
@@ -102,7 +141,7 @@ head(diabetic)
 ```
 ## Survival Data
 
-The "diabetic" dataset from 
+The "diabetic" dataset from package `survival`
 
 - `id` subject id
 - `laser` laser type: xenon or argon
@@ -111,7 +150,7 @@ The "diabetic" dataset from
 - `trt` treatment: 0 = no treatment, 1= laser
 - `risk` risk group of 6-12
 - `time` time to event or last follow-up
-- `status` status of 0= censored or 1 = visual loss
+- `status` status of 0 = censored or 1 = visual loss
 
 ## Survival Objects
 
@@ -120,6 +159,13 @@ The "diabetic" dataset from
 
 ```{r}
 surv <- Surv(time=diabetic$time, event=diabetic$status)
+head(surv)
+```
+
+## Survival Objects
+
+```{r}
+plot(surv)
 ```
 
 ## Survival Data
@@ -127,7 +173,7 @@ surv <- Surv(time=diabetic$time, event=diabetic$status)
 Many of the data sets that we will be working with have been pre-processed,
 so that we can easily use the `Surv` function.
 
-What happens if we occur data in the wild?
+What happens if we encounter data in the wild?
 
 - May have a "start time" (could be in datetime format like "2020-01-01")
 - May have an "end time" but lots of missing data for the end times
