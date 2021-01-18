@@ -1,0 +1,245 @@
+---
+title: 'Discussion 2: Fitting Parametric Models in R'
+author: "Serge Aleshin-Guendel"
+date: "1/18/2021"
+output:
+  beamer_presentation: default
+  ioslides_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Outline
+
+The outline for these discussion sections (led by me) will generally be:
+
+- Review concepts from lecture for 35 minutes (please ask questions!)
+- 15 minutes for open Q&A
+
+## Learning Objectives
+
+- Understand how censoring arises in survival data
+- Understand how truncation arises in survival data
+- Recognize the difference between censoring and truncation
+- Learn how to create survival data sets and survival plots in R
+
+## Slides
+
+- Slides are available on Canvas
+- RMarkdown can be checked out via GitHub
+
+```{sh, eval=F}
+git clone
+ https://github.com/mbannick/survival-discussion-section.git
+```
+
+## Poll Everywhere
+
+We will use Poll Everywhere to take some quick anonymous polls
+to stay engaged!
+
+- In your browser on your phone or computer, navigate to PollEv.com/mnorwood
+- You will be prompted to do a UW single sign on with your UW login
+- Alternatively, text MNORWOOD to 22333 to join the session
+
+## First Poll
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## First Poll
+
+<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/DKjjdclH3Mwn4rtYLTfcf?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
+## Review: Survival Data
+
+- Survival data consists of information about time to an event.
+- In order to create survival data, you need to define
+  - Initiating event
+  - Terminating event
+  - Time scale
+
+## Review: Survival Data
+
+What makes survival data especially tricky is that we commonly see:
+
+- Censoring
+- Truncation
+
+## Review: Censoring
+
+Data can be left censored, right censored, or interval censored. In this course, we mainly focus on *right censored* data. It is incredibly common in survival data.
+
+- **Right censoring**: When all you know about the event time is that it is beyond some time point (e.g. you will not observe the event for some individuals)
+- **Left censoring**: When all you know about the event time is that it is before some time point (e.g. some have already had the event when they enter the study)
+- **Interval censoring**: When all you know about the event time is that it is in between two time points (e.g. testing negative at one visit and positive at the next)
+
+## Review: Censoring
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Review: Censoring
+
+<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/Ur42wscWUZSu1TKv0wobZ?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
+## Review: Non-informative Censoring
+
+There are techniques in survival analysis to account for censoring, such that the estimates of survival (through Kaplan-Meier, more later) or parameter estimation, are unbiased.
+
+However, these methods require that the censoring is *non-informative*.
+
+- **From lecture**: An individual who is censored is no more or less likely to experience the event in the immediate future than an individual who is not censored.
+
+In other words, if an individual is censored, this should not give you any hints about whether or not they will experience the event sooner or later than anyone else.
+
+## Review: Non-informative censoring
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Review: Non-informative Censoring
+
+<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/FSmQXYygaceaFIxv8cEyq?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
+## Review: Truncation
+
+Truncation occurs when an individual's time to event excludes them from being included in the sample.
+
+This can happen when the time to event is too small, e.g. the terminating event happened before the study could enroll someone (left truncation).
+
+This can happen when the time to event is too large, e.g. a retrospective study selects only individuals for which the terminating event has happened already (right truncation).
+
+## Review: Truncation
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Review: Truncation
+
+<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/DFoOuA31D1t6Brzlf6Gng?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
+## Review: Truncation versus Censoring
+
+The fundamental difference between truncation and censoring is in who is included in the study.
+
+- **Truncation induces selection bias**: because of their event time, individuals didn't even make it into the study.
+- **Censoring is incomplete information**: for the individuals that did make it into the study, we know something about their event time (e.g. after some point), but don't know it precisely.
+
+## Survival Packages
+
+A package that includes very handy functions for dealing with survival
+data is `survival`.
+
+```{r}
+library(survival)
+```
+
+- `survival::survfit`: fit Kaplan-Meier curves (more later in the course)
+- `survminer::ggsurvplot` or `GGally::ggsurv`: an alternative way to plot a `survfit` result for ggplot2 enthusiasts, both take a `survfit` object
+
+## Survival Data
+
+```{r}
+data("diabetic")
+head(diabetic)
+```
+## Survival Data
+
+The "diabetic" dataset from package `survival`
+
+- `id` subject id
+- `laser` laser type: xenon or argon
+- `age` age at diagnosis
+- `eye` a factor with levels of left right
+- `trt` treatment: 0 = no treatment, 1= laser
+- `risk` risk group of 6-12
+- `time` time to event or last follow-up
+- `status` status of 0 = censored or 1 = visual loss
+
+## Survival Objects
+
+- `time` is the recorded amount of time from the event initiation until either the event happens or some censoring occurs
+- `event` is an indicator for whether or not the observation was censored
+
+```{r}
+surv <- Surv(time=diabetic$time, event=diabetic$status)
+head(surv)
+```
+
+## Survival Objects
+
+```{r}
+plot(surv)
+```
+
+## Survival Data
+
+Many of the data sets that we will be working with have been pre-processed,
+so that we can easily use the `Surv` function.
+
+What happens if we encounter data in the wild?
+
+- May have a "start time" (could be in datetime format like "2020-01-01")
+- May have an "end time" but lots of missing data for the end times
+
+## Survival Data
+
+```{r, include=F}
+library(lubridate)
+library(data.table)
+```
+
+```{r}
+set.seed(10)
+begin <- dmy("20/10/2020")
+today <- dmy("12/01/2021")
+
+initiate <- begin + sample(0:10, size=100, replace=TRUE)
+terminate <- initiate + sample(0:200, size=100, replace=TRUE)
+terminate[terminate >= today] <- NA
+
+df <- data.table(initiate=initiate, terminate=terminate)
+head(df)
+```
+
+## Survival Data
+
+How would we get `df` into a form that we could use with `Surv`?
+
+```{r}
+df[, time := as.numeric(terminate - initiate)]
+df[, event := !is.na(time)]
+df[is.na(time), time := as.numeric(today - initiate)]
+
+head(df)
+```
+
+## Survival Data
+
+```{r}
+surv <- Surv(time=df$time, event=df$event)
+plot(surv)
+```
+
+## High-level Overview of Other Concepts
+
+- Risk sets at time $t$: who has not yet had the event or been censored by time $t$?
+
+- The relationships between survival, density, hazard, etc.
+
+- Fitting a parametric distribution (e.g. exponential, Weibull) to survival data based on maximum likelihood, with different contributions from censored and un-censored observations
+
+## Discussion Feedback
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Discussion Feedback
+
+<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/WESRQefjF9zLIQjxQcry0?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
+## Material Feedback
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Material Feedback
+
+<iframe src="https://embed.polleverywhere.com/free_text_polls/VBaScoepuOwR3JO5hlx6y?controls=none&short_poll=true" width="800px" height="600px"></iframe>
