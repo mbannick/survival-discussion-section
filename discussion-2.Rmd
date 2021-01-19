@@ -27,6 +27,7 @@ Q&A, going over homework solutions (after homeworks are graded), etc.
 - How to fit parametric models to survival data
 - How to plot survival functions from parametric model fits 
 - How to compare fits of nested parametric models
+- How to estimate various measures from parametric models
 
 ## Slides
 
@@ -355,6 +356,122 @@ likelihood ratio statistic can then be calculated as:
 
 We reject the hypothesis that the Weibull model is an appropriate simplification 
 of the generalized gamma model at the $\alpha=0.05$ significance level.
+
+## Estimating median time to death with parametric model
+
+Suppose we want to estimate the median time to death using the generalized gamma
+model. Can be done just by modifying the arguments to \texttt{fitparametric}:
+
+\tiny
+```{r}
+library(numDeriv)
+fit_gengamma <- fitparametric(s.trace, dist = "gengamma", feature = "quantile")
+```
+\normalsize
+
+## Estimating survival function with parametric model
+
+Suppose we want to estimate the probability that death doesn't occur in the 
+first two years using the generalized gamma model. This can be written as 
+$P(T>2)=S(2)$, i.e. the survivor function at two years. Can be done just by 
+modifying the arguments to \texttt{fitparametric}:
+
+\tiny
+```{r}
+fit_gengamma <- fitparametric(s.trace, dist = "gengamma", feature = "survival", 
+                              t = 2)
+```
+\normalsize
+
+## Estimating conditional survival function with parametric model
+
+Suppose we want to estimate the probability that death doesn't occur in the 
+first two years, given death hasn't occurred in the first year, using the 
+generalized gamma model. This can be written as 
+$P(T>2|T>1)=S(2)/S(1)$, i.e. the survivor function at two years, conditioned on 
+survival at year one. Can be done just by modifying the arguments to 
+\texttt{fitparametric}:
+
+\tiny
+```{r}
+fit_gengamma <- fitparametric(s.trace, dist = "gengamma", 
+                              feature ="condsurvival", t = 2, t0 = 1)
+```
+\normalsize
+
+## Does the surival distribution differ between to sub-populations?
+
+Suppose we want to determine whether or not the time to death distribution
+differs between those with and without diabetes. Let's assume we're fitting 
+separate exponential models to each sub-population, i.e. we're assuming
+$T\sim\text{Exp}(\lambda_1)$ for those without diabetes and 
+$T\sim\text{Exp}(\lambda_2)$ for those with diabetes. The time to death 
+distribution differs between populations when $\lambda_1\neq\lambda_2$, or 
+equivalently when $\delta:=\lambda_1-\lambda_2\neq 0$. 
+
+## Does the surival distribution differ between to sub-populations?
+
+Fit the separate exponential models
+
+\footnotesize
+```{r}
+fit_exp_diabetes_1 <- flexsurvreg(Surv(time, status == 9) ~ 1, 
+                                  data = trace[trace$diabetes == 0, ],
+                                  dist = "exponential")
+fit_exp_diabetes_2 <- flexsurvreg(Surv(time, status == 9) ~ 1, 
+                                  data = trace[trace$diabetes == 1, ],
+                                  dist = "exponential")
+fit_exp_diabetes_1$res
+fit_exp_diabetes_2$res
+```
+\normalsize
+
+## Does the surival distribution differ between to sub-populations?
+
+We have an estimate of $\delta$, i.e. 
+$$\hat{\delta}=\hat{\lambda}_1 - \hat{\lambda}_2=0.1108693-0.1802261= -0.06935684.$$
+If we can derive the standard error of $\hat{\delta}$, $SE(\hat{\delta})$, we 
+can construct a Wald statistic
+$$\hat{T}_{W}=\frac{|\hat{\delta}-\delta_0|}{SE(\hat{\delta})},$$
+where $\delta_0=0$ under the null hypothesis that the time to death distribution
+doesn't differ between those with or without diabetes.
+
+\footnotesize
+```{r}
+delta <- fit_exp_diabetes_1$res[1] - fit_exp_diabetes_2$res[1]
+delta
+```
+\normalsize
+
+
+## Does the surival distribution differ between to sub-populations?
+Assuming the two sub-populations are independent, the standard error of 
+$\hat{\delta}$ is a function of the standard errors of $\hat{\lambda}_1$ and
+$\hat{\lambda}_2$:
+$$SE(\hat{\delta})=\sqrt{SE(\hat{\lambda}_1)^2 + SE(\hat{\lambda}_2)^2}.$$
+\footnotesize
+```{r}
+delta_se <- sqrt(fit_exp_diabetes_1$res[4] ^ 2 + 
+                     fit_exp_diabetes_2$res[4] ^ 2)
+T_W <- abs(delta) / delta_se
+T_W
+```
+\normalsize
+
+## Does the surival distribution differ between to sub-populations?
+
+For large $n$, the Wald statistic is normally distributed. A two-sided p-value
+can then be calculated as follows:
+
+\footnotesize
+```{r}
+2 * pnorm(-T_W) 
+```
+\normalsize
+
+Thus at the $\alpha=0.05$ level, we reject the null hypothesis that the time to 
+death distribution doesn't differ between those with or without diabetes.
+
 
 ## Q & A time!
 
