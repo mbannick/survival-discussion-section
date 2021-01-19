@@ -2,9 +2,9 @@
 title: 'Discussion 2: Fitting Parametric Models in R'
 author: "Serge Aleshin-Guendel"
 date: "1/18/2021"
+fontsize: 10pt
 output:
   beamer_presentation: default
-  ioslides_presentation: default
 ---
 
 ```{r setup, include=FALSE}
@@ -13,17 +13,20 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Outline
 
-The outline for these discussion sections (led by me) will generally be:
+I'll try to stick to the same outline as Marlena:
 
 - Review concepts from lecture for 35 minutes (please ask questions!)
 - 15 minutes for open Q&A
 
+Let me know what's useful for y'all! More time reviewing concepts, more time for 
+Q&A, going over homework solutions (after homeworks are graded), etc.
+
 ## Learning Objectives
 
-- Understand how censoring arises in survival data
-- Understand how truncation arises in survival data
-- Recognize the difference between censoring and truncation
-- Learn how to create survival data sets and survival plots in R
+- How to fit and plot a Kaplan-Meier curve
+- How to fit parametric models to survival data
+- How to plot survival functions from parametric model fits 
+- How to compare fits of nested parametric models
 
 ## Slides
 
@@ -35,211 +38,326 @@ git clone
  https://github.com/mbannick/survival-discussion-section.git
 ```
 
-## Poll Everywhere
 
-We will use Poll Everywhere to take some quick anonymous polls
-to stay engaged!
+## Review: TRACE Data
 
-- In your browser on your phone or computer, navigate to PollEv.com/mnorwood
-- You will be prompted to do a UW single sign on with your UW login
-- Alternatively, text MNORWOOD to 22333 to join the session
+TRACE study of myocardial infarction (Jensen et al. 1997)
 
-## First Poll
+Participants are patients with myocardial infarction admitted to the coronary care unit at Glostrup County Hospital in Denmark between 1977 and 1988.
 
-<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+Primary objective was to evaluate the relationship  between various risk factors and survival after myocardial infarction.
 
-## First Poll
+We utilize here a subset of 500 patients available in the \texttt{timereg} package in \texttt{R}.
 
-<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/DKjjdclH3Mwn4rtYLTfcf?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+## Review: TRACE Data
 
-## Review: Survival Data
+Patient characteristics in this subsample include:
 
-- Survival data consists of information about time to an event.
-- In order to create survival data, you need to define
-  - Initiating event
-  - Terminating event
-  - Time scale
+- 259 deaths due to myocardial infarction and 5 due to another cause; all others were alive at the end of the study (prop. censoring: 47.2\%).
+- 338 women + 162 men = 500 patients.
+- Average age at myocardial infarction: 67.5 (range: 28.1--92.1).
+- Comorbidities present:
+     - 261 patients had congestive heart failure,
+     - 29 patients had ventricular fibrillation,
+     - 47 patients had diabetes.
 
-## Review: Survival Data
+## Review: TRACE Data
 
-What makes survival data especially tricky is that we commonly see:
+Relevant variables in dataset:
 
-- Censoring
-- Truncation
+- \texttt{time}: time until death or censoring
+- \texttt{status}: description of terminating event
+     - 0 = alive at end of study
+     - 9 = death due to myocardial infarction
+     - 7 = death due to other causes
+     
+- \texttt{wmi}: wall motion index (ultrasound-based measure of heart function)
+     - $<$ 2 = akinesis, hypokinesis and dyskinesis 
+     - $>$ 2 = hyperkinesis
+     
+- \texttt{chf}: indicator of congestive heart failure
+- \texttt{age}: age of patient (in years)
+- \texttt{sex}: sex (\ 0 = female, 1\ =\ male\ )
+- \texttt{diabetes}: indicator of diabetes
+- \texttt{vf}: indicator of ventricular fibrillation
 
-## Review: Censoring
+## Reading in the TRACE data
 
-Data can be left censored, right censored, or interval censored. In this course, we mainly focus on *right censored* data. It is incredibly common in survival data.
+Note that in order to source \texttt{fitparametric.R} as we do below, it needs 
+to be located in your working directory
 
-- **Right censoring**: When all you know about the event time is that it is beyond some time point (e.g. you will not observe the event for some individuals)
-- **Left censoring**: When all you know about the event time is that it is before some time point (e.g. some have already had the event when they enter the study)
-- **Interval censoring**: When all you know about the event time is that it is in between two time points (e.g. testing negative at one visit and positive at the next)
-
-## Review: Censoring
-
-<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
-
-## Review: Censoring
-
-<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/Ur42wscWUZSu1TKv0wobZ?controls=none&short_poll=true" width="800px" height="600px"></iframe>
-
-## Review: Non-informative Censoring
-
-There are techniques in survival analysis to account for censoring, such that the estimates of survival (through Kaplan-Meier, more later) or parameter estimation, are unbiased.
-
-However, these methods require that the censoring is *non-informative*.
-
-- **From lecture**: An individual who is censored is no more or less likely to experience the event in the immediate future than an individual who is not censored.
-
-In other words, if an individual is censored, this should not give you any hints about whether or not they will experience the event sooner or later than anyone else.
-
-## Review: Non-informative censoring
-
-<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
-
-## Review: Non-informative Censoring
-
-<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/FSmQXYygaceaFIxv8cEyq?controls=none&short_poll=true" width="800px" height="600px"></iframe>
-
-## Review: Truncation
-
-Truncation occurs when an individual's time to event excludes them from being included in the sample.
-
-This can happen when the time to event is too small, e.g. the terminating event happened before the study could enroll someone (left truncation).
-
-This can happen when the time to event is too large, e.g. a retrospective study selects only individuals for which the terminating event has happened already (right truncation).
-
-## Review: Truncation
-
-<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
-
-## Review: Truncation
-
-<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/DFoOuA31D1t6Brzlf6Gng?controls=none&short_poll=true" width="800px" height="600px"></iframe>
-
-## Review: Truncation versus Censoring
-
-The fundamental difference between truncation and censoring is in who is included in the study.
-
-- **Truncation induces selection bias**: because of their event time, individuals didn't even make it into the study.
-- **Censoring is incomplete information**: for the individuals that did make it into the study, we know something about their event time (e.g. after some point), but don't know it precisely.
-
-## Survival Packages
-
-A package that includes very handy functions for dealing with survival
-data is `survival`.
-
-```{r}
+```{r, warning = FALSE}
+# Load relevant packages 
+library(foreign)
 library(survival)
+library(flexsurv)
+
+# Load in fitparametric function
+source("fitparametric.R")
+
+# Read in TRACE data
+trace <- read.dta("traceST11.dta")
 ```
 
-- `survival::survfit`: fit Kaplan-Meier curves (more later in the course)
-- `survminer::ggsurvplot` or `GGally::ggsurv`: an alternative way to plot a `survfit` result for ggplot2 enthusiasts, both take a `survfit` object
+## Reading in the TRACE data
 
-## Survival Data
+```{r, warning = FALSE}
+head(trace)
+```
+
+## Censoring in the TRACE data set
+
+Following Jon's course slides, we will treat both end of study and death due to 
+causes other than myocardial infarction as censoring events
 
 ```{r}
-data("diabetic")
-head(diabetic)
+# Create a Surv object using the TRACE data
+s.trace <- with(trace, Surv(time, status == 9)) 
 ```
-## Survival Data
 
-The "diabetic" dataset from package `survival`
+## Estimating the survival function nonparametrically
 
-- `id` subject id
-- `laser` laser type: xenon or argon
-- `age` age at diagnosis
-- `eye` a factor with levels of left right
-- `trt` treatment: 0 = no treatment, 1= laser
-- `risk` risk group of 6-12
-- `time` time to event or last follow-up
-- `status` status of 0 = censored or 1 = visual loss
+Before fitting parametric models, estimate the survival function 
+nonparametrically, and plot the estimate:
 
-## Survival Objects
+\footnotesize
+```{r, eval = FALSE}
+survfit.trace <- survfit(s.trace ~ 1, data = trace, conf.type = "log-log")
+plot(survfit.trace, conf.int = FALSE, xlab = "Time (in years)",
+     ylab = "Survival probability", col = "black", lty = "solid", lwd = 2)
+```
+\normalsize
 
-- `time` is the recorded amount of time from the event initiation until either the event happens or some censoring occurs
-- `event` is an indicator for whether or not the observation was censored
+## Estimating the survival function nonparametrically
 
+```{r, fig.width = 10, fig.height = 8, echo=FALSE}
+survfit.trace <- survfit(s.trace ~ 1, data = trace, conf.type = "log-log")
+plot(survfit.trace, conf.int = FALSE, xlab = "Time (in years)",
+     ylab = "Survival probability", col = "black", lty = "solid", lwd = 2)
+```
+
+
+## Fitting an exponential model
+
+Fit an exponential model to the TRACE data
+
+\footnotesize
 ```{r}
-surv <- Surv(time=diabetic$time, event=diabetic$status)
-head(surv)
+fit_exp <- fitparametric(s.trace, dist = "exp")
+```
+\normalsize
+
+## Plotting exponential model fit
+
+Here we plot the estimated survival function based on the exponential model fit,
+and compare it to the nonparametric estimate
+\footnotesize
+```{r, eval = FALSE}
+plot(survfit.trace, conf.int = FALSE, xlab = "Time (in years)",
+     ylab = "Survival probability", col = "black", lty = "solid", lwd = 2)
+lines(fit_exp$fit, ci = FALSE, col = "darkgreen", lty = "solid", lwd = 2) 
+legend("topright", c("nonparametric estimator", "exponential"), 
+       col = c("black", "darkgreen"), lty = c("solid", "solid"), 
+       lwd = rep(3, 4), cex = 0.9)
+```
+\normalsize
+
+## Plotting exponential model fit
+
+```{r, fig.width = 10, fig.height = 8, echo = FALSE}
+plot(survfit.trace, conf.int = FALSE, xlab = "Time (in years)",
+     ylab = "Survival probability", col = "black", lty = "solid", lwd = 2)
+lines(fit_exp$fit, ci = FALSE, col = "darkgreen", lty = "solid", lwd = 2) 
+legend("topright", c("nonparametric estimator", "exponential"), 
+       col = c("black", "darkgreen"), lty = c("solid", "solid"), 
+       lwd = rep(3, 4), cex = 0.9)
 ```
 
-## Survival Objects
+## Fitting a Weibull model
 
+Fit an Weibull model to the TRACE data
+
+\footnotesize
 ```{r}
-plot(surv)
+fit_weibull <- fitparametric(s.trace, dist = "weibull")
+```
+\normalsize
+
+
+## Plotting Weibull model fit
+
+Here we plot the estimated survival function based on the Weibull model fit,
+and compare it to the nonparametric estimate and the exponential estimate
+\footnotesize
+```{r, eval = FALSE}
+plot(survfit.trace, conf.int = FALSE, xlab = "Time (in years)",
+     ylab = "Survival probability", col = "black", lty = "solid", lwd = 2)
+lines(fit_exp$fit, ci = FALSE, col = "darkgreen", lty = "solid", lwd = 2) 
+lines(fit_weibull$fit, ci = FALSE, col = "orange", lty = "dashed", lwd = 2)
+legend("topright", c("nonparametric estimator", "exponential", "weibull"), 
+       col = c("black", "darkgreen", "orange"), 
+       lty = c("solid", "solid", "dashed"), lwd = rep(3, 4), cex = 0.9)
+```
+\normalsize
+
+## Plotting Weibull model fit
+
+```{r, fig.width = 10, fig.height = 8, echo = FALSE}
+plot(survfit.trace, conf.int = FALSE, xlab = "Time (in years)",
+     ylab = "Survival probability", col = "black", lty = "solid", lwd = 2)
+lines(fit_exp$fit, ci = FALSE, col = "darkgreen", lty = "solid", lwd = 2) 
+lines(fit_weibull$fit, ci = FALSE, col = "orange", lty = "dashed", lwd = 2)
+legend("topright", c("nonparametric estimator", "exponential", "weibull"), 
+       col = c("black", "darkgreen", "orange"),
+       lty = c("solid", "solid", "dashed"), lwd = rep(3, 4), cex = 0.9)
 ```
 
-## Survival Data
+## Does the Weibull model provide a better fit than the exponential?
 
-Many of the data sets that we will be working with have been pre-processed,
-so that we can easily use the `Surv` function.
+Suppose we wanted to test the hypothesis that the exponential model is an 
+appropriate simplification of the Weibull model. Recall that in terms of the
+parameterization used in the \texttt{fitparametric} function, the exponential
+is a special case of the Weibull where the parameter $p=1$.
 
-What happens if we encounter data in the wild?
+Thus we could rephrase the hypothesis as: is $p=1$?
 
-- May have a "start time" (could be in datetime format like "2020-01-01")
-- May have an "end time" but lots of missing data for the end times
+## Does the Weibull model provide a better fit than the exponential?
 
-## Survival Data
-
-```{r, include=F}
-library(lubridate)
-library(data.table)
-```
-
+\scriptsize
 ```{r}
-set.seed(10)
-begin <- dmy("20/10/2020")
-today <- dmy("12/01/2021")
-
-initiate <- begin + sample(0:10, size=100, replace=TRUE)
-terminate <- initiate + sample(0:200, size=100, replace=TRUE)
-terminate[terminate >= today] <- NA
-
-df <- data.table(initiate=initiate, terminate=terminate)
-head(df)
+fit_weibull <- fitparametric(s.trace, dist = "weibull")
 ```
+\normalsize
 
-## Survival Data
+A $95\%$ confidence interval for $p$ is $[0.49, 0.62]$, which doesn't 
+include $p=1$. Thus we reject the hypothesis that the exponential model is an 
+appropriate simplification of the Weibull model at the $\alpha=0.05$ 
+significance level.
 
-How would we get `df` into a form that we could use with `Surv`?
+This is an example of a Wald test (see slide 20 of Chapter 2).
 
+## Does the Weibull model provide a better fit than the exponential?
+
+Alternatively, we could perform a likelihood ratio test (see slide 20 of Chapter
+2). The statistic for the likelihood ratio test is 
+$$\hat{T}_{LRT}=-2[\log(L_n(\theta_0)) - \log(L_n(\hat{\theta}))],$$ where:
+
+- $\log(L_n(\hat{\theta}))$ is estimated log-likelihood under the full (Weibull)
+model
+- $\log(L_n(\theta_0))$ is estimated log likelihood under the reduced 
+(exponential) model
+
+\footnotesize
 ```{r}
-df[, time := as.numeric(terminate - initiate)]
-df[, event := !is.na(time)]
-df[is.na(time), time := as.numeric(today - initiate)]
-
-head(df)
+T_LRT <- -2 * (fit_exp$loglik - fit_weibull$loglik)
+T_LRT
 ```
+\normalsize
 
-## Survival Data
+## Does the Weibull model provide a better fit than the exponential?
 
+For large $n$, under the null hypothesis $\hat{T}_{LRT}$ is approximately
+chi-squared distributed, with degrees of freedom equal to $1$ (the difference in 
+dimensionality for the exponential and Weibull models). A p-value for our 
+likelihood ratio statistic can then be calculated as:
+\footnotesize
 ```{r}
-surv <- Surv(time=df$time, event=df$event)
-plot(surv)
+1 - pchisq(T_LRT, df = 1)
+```
+\normalsize
+
+Note that the p-value is not exactly $0$, but numerically $0$. Again we reject 
+the hypothesis that the exponential model is an appropriate simplification of 
+the Weibull model at the $\alpha=0.05$ significance level.
+
+## Fitting a generalized gamma model
+
+Fit an generalized gamma  model to the TRACE data
+
+\footnotesize
+```{r}
+fit_gengamma <- fitparametric(s.trace, dist = "gengamma")
+```
+\normalsize
+
+
+## Plotting generalized gamma model fit
+
+Here we plot the estimated survival function based on the generalized gamma  model fit,
+and compare it to the nonparametric estimate, the exponential estimate, and the
+Weibull estimate
+
+\footnotesize
+```{r, eval = FALSE}
+plot(survfit.trace, conf.int = FALSE, xlab = "Time (in years)",
+     ylab = "Survival probability", col = "black", lty = "solid", lwd = 2)
+lines(fit_exp$fit, ci = FALSE, col = "darkgreen", lty = "solid", lwd = 2) 
+lines(fit_weibull$fit, ci = FALSE, col = "orange", lty = "dashed", lwd = 2)
+lines(fit_gengamma$fit, ci = FALSE, col = "blue", lty = "dotted", lwd = 2)
+legend("topright", 
+       c("nonparametric estimator", "exponential", "weibull", "gengamma"), 
+       col = c("black", "darkgreen", "orange", "blue"),
+       lty = c("solid", "solid", "dashed", "dotted"), 
+       lwd = rep(3, 4), cex = 0.9)
+```
+\normalsize
+
+## Plotting generalized gamma model fit
+
+```{r, fig.width = 10, fig.height = 8, echo = FALSE}
+plot(survfit.trace, conf.int = FALSE, xlab = "Time (in years)",
+     ylab = "Survival probability", col = "black", lty = "solid", lwd = 2)
+lines(fit_exp$fit, ci = FALSE, col = "darkgreen", lty = "solid", lwd = 2) 
+lines(fit_weibull$fit, ci = FALSE, col = "orange", lty = "dashed", lwd = 2)
+lines(fit_gengamma$fit, ci = FALSE, col = "blue", lty = "dotted", lwd = 2)
+legend("topright", 
+       c("nonparametric estimator", "exponential", "weibull", "gengamma"), 
+       col = c("black", "darkgreen", "orange", "blue"),
+       lty = c("solid", "solid", "dashed", "dotted"), 
+       lwd = rep(3, 4), cex = 0.9)
 ```
 
-## High-level Overview of Other Concepts
+## Does the generalized gamma model provide a better fit than the Weibull?
 
-- Risk sets at time $t$: who has not yet had the event or been censored by time $t$?
+Suppose we wanted to test the hypothesis that the Weibull model is an 
+appropriate simplification of the generalized gamma model. The parameterization
+of the generalized gamma distribution in the \texttt{fitparametric} function 
+does not lend itself to a Wald test this time, so we'll jump straight to the
+likelihood ratio test.
 
-- The relationships between survival, density, hazard, etc.
+## Does the generalized gamma model provide a better fit than the Weibull?
 
-- Fitting a parametric distribution (e.g. exponential, Weibull) to survival data based on maximum likelihood, with different contributions from censored and un-censored observations
+Just as before, the statistic for the likelihood ratio test is $$\hat{T}_{LRT}=-2[\log(L_n(\theta_0)) - \log(L_n(\hat{\theta}))],$$ where:
 
-## Discussion Feedback
+- $\log(L_n(\hat{\theta}))$ is estimated log-likelihood under the full 
+(generalized gamma) model
+- $\log(L_n(\theta_0))$ is estimated log likelihood under the reduced (Weibull) 
+model
 
-<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+\footnotesize
+```{r}
+T_LRT <- -2 * (fit_weibull$loglik - fit_gengamma$loglik)
+T_LRT
+```
+\normalsize
 
-## Discussion Feedback
+## Does the generalized gamma model provide a better fit than the Weibull?
 
-<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/WESRQefjF9zLIQjxQcry0?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+For large $n$, under the null hypothesis $\hat{T}_{LRT}$ is approximately
+chi-squared distributed, with degrees of freedom equal to $1$ (the difference in 
+dimensionality for the Weibull and generalized gamma models). A p-value for our 
+likelihood ratio statistic can then be calculated as:
+\footnotesize
+```{r}
+1 - pchisq(T_LRT, df = 1)
+```
+\normalsize
 
-## Material Feedback
+We reject the hypothesis that the Weibull model is an appropriate simplification 
+of the generalized gamma model at the $\alpha=0.05$ significance level.
 
-<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+## Q & A time!
 
-## Material Feedback
+Any questions about the material covered today?
 
-<iframe src="https://embed.polleverywhere.com/free_text_polls/VBaScoepuOwR3JO5hlx6y?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+Any questions about anything else related to the course?
