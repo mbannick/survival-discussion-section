@@ -3,8 +3,8 @@ title: 'Discussion 1: Censoring, Truncation, and R'
 subtitle: 'BIOST 537'
 author: "Marlena Bannick"
 output:
-  beamer_presentation: default
   ioslides_presentation: default
+  beamer_presentation: default
 ---
 
 ```{r setup, include=FALSE}
