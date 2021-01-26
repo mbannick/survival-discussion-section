@@ -279,6 +279,7 @@ Recall that there were two contributions to the likelihood when we talked about 
 
 We could parameterize the $\lambda = e^{\beta_0 + \beta_1 x_1 + ... + \beta_p x_p}$. But the drawback is that we're assuming some parametric form for $f$. Semi-parametric regression is preferred here.
 
+
 ## Testing differences in hazard with continuous variable -- Cox Proportional Hazards Regression
 
 The idea is that we can relax the assumption about the parametric form of $f$. Instead, we just say that there is some unknown baseline hazard $\lambda_0(t)$ and the covariates modify this hazard in a **proportional** way.
