@@ -1,0 +1,17 @@
+---
+title: 'Discussion 4: Medians and Odds and Ends'
+author: "Serge Aleshin-Guendel"
+date: "2/1/2021"
+fontsize: 10pt
+output:
+  beamer_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Learning Objectives
+
+- How to estimate the median survival time (by hand and in R)
+- How to estimate the median residual survival time
