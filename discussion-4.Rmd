@@ -184,7 +184,7 @@ long after $t_0$ it takes for half of this sub-population to have the event.
 ## Estimating the median residual survival time by hand
 
 Suppose we're interested in the median residual survival time, where $t_0=0.25$ 
-(roughly one month). To estimate this by hand, we can follow slide 107 of the 
+. To estimate this by hand, we can follow slide 107 of the 
 chapter 2 slides. In particular, if we can find the smallest time $t^*$ such that 
 $S(t^*)\leq 0.5S(t_0)$, the median residual survival time is $t^*-t_0$.
 
