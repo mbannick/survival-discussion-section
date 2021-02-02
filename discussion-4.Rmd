@@ -1,10 +1,10 @@
 ---
-title: 'Discussion 4: Medians and Odds and Ends'
+title: 'Discussion 4: Estimating Median and Median Residual Survival Times'
 author: "Serge Aleshin-Guendel"
 date: "2/1/2021"
-fontsize: 10pt
 output:
   beamer_presentation: default
+fontsize: 10pt
 ---
 
 ```{r setup, include=FALSE}
@@ -12,6 +12,221 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Learning Objectives
+Using the Kaplan-Meier estimate of the survival function we will focus on:
 
-- How to estimate the median survival time (by hand and in R)
+- How to estimate the median survival time 
 - How to estimate the median residual survival time
+
+## Slides
+
+- Slides are available on Canvas
+- RMarkdown can be checked out via GitHub
+
+```{sh, eval=F}
+git clone
+ https://github.com/mbannick/survival-discussion-section.git
+```
+
+## Reading in the TRACE data
+
+We will use the TRACE data as in the second discussion section. Note that in 
+order to source \texttt{getmedianres.R} as we do below, it needs to be located 
+in your working directory
+
+```{r, warning = FALSE}
+# Load relevant packages 
+library(foreign)
+library(survival)
+
+# Load in getmedianres function
+source("getmedianres.R")
+
+# Read in TRACE data
+trace <- read.dta("traceST11.dta")
+
+# Create a Surv object using the TRACE data
+s.trace <- with(trace, Surv(time, status == 9)) 
+```
+
+## Estimating the survival function nonparametrically
+
+We will focus today on estimating the median and median residual survival times,
+based on Kaplan-Meier estimates of the survival function
+
+\footnotesize
+```{r, eval = FALSE}
+survfit.trace <- survfit(s.trace ~ 1, data = trace, conf.type = "log-log")
+plot(survfit.trace, conf.int = TRUE, xlab = "Time (Years)", 
+     ylab = "Survival Probability")
+```
+\normalsize
+
+## Estimating the survival function nonparametrically
+
+```{r, fig.width = 10, fig.height = 8, echo=FALSE}
+survfit.trace <- survfit(s.trace ~ 1, data = trace, conf.type = "log-log")
+plot(survfit.trace, conf.int = TRUE, xlab = "Time (Years)", 
+     ylab = "Survival Probability")
+```
+
+
+## What is the median survival time?
+
+Let $S(t)$ denote the survival function, i.e. $S(t)=P(T>t)$ is the probability 
+the event of interest happens after time $t$. For the TRACE data is the 
+probability a death occurs $t$ years after a heart attack.
+
+The median survival time is the time at which $S(t)=0.5$. In other words, the 
+median survival time is the time at which half of the population has already had
+the event of interest occur.
+
+## Estimating the median survival time by hand
+The idea for estimating the median survival time by hand: find the time at which 
+the estimated survival function is $0.5$.
+
+```{r, fig.width = 7, fig.height = 5, echo=FALSE}
+plot(survfit.trace, conf.int = TRUE, xlab = "Time (Years)", 
+     ylab = "Survival Probability")
+segments(x0 = 0, y0 = 0.5, x1 = 6.52, y1 = 0.5, col = "red")
+```
+
+## Estimating the median survival time by hand
+The idea for estimating the median survival time by hand: find the time at which 
+the estimated survival function is $0.5$.
+
+```{r, fig.width = 7, fig.height = 5, echo=FALSE}
+plot(survfit.trace, conf.int = TRUE, xlab = "Time (Years)", 
+     ylab = "Survival Probability")
+segments(x0 = 0, y0 = 0.5, x1 = 6.52, y1 = 0.5, col = "red")
+segments(x0 = 6.52, y0 = 0, x1 = 6.52, y1 = 0.5, col = "red")
+```
+
+## Estimating the median survival time by hand
+From the previous plot it looks like the median is somewhere between 6 and 7. We 
+can use the output from \texttt{survfit} to make this estimate more precise. In 
+particular, our estimate of the median is the smallest time such that the 
+estimated survival function is less than $0.5$. Thus our estimate here is 
+$6.53$.
+
+\footnotesize
+```{r}
+summary(survfit.trace, times = seq(from = 6.50, to = 6.55, by = 0.01))
+```
+\normalsize
+
+## Constructing a confidence interval for the median survival time by hand
+The idea for constructing a confidence interval for the median survival time by 
+hand is similar to estimating the median: find the times at which 
+the upper and lower bounds of the confidence interval for the survival function 
+are $0.5$.
+
+```{r, fig.width = 7, fig.height = 5, echo=FALSE}
+plot(survfit.trace, conf.int = TRUE, xlab = "Time (Years)", 
+     ylab = "Survival Probability")
+segments(x0 = 0, y0 = 0.5, x1 = 5.36, y1 = 0.5, col = "red")
+segments(x0 = 5.36, y0 = 0, x1 = 5.36, y1 = 0.5, col = "red")
+segments(x0 = 0, y0 = 0.5, x1 = 7.38, y1 = 0.5, col = "blue")
+segments(x0 = 7.38, y0 = 0, x1 = 7.38, y1 = 0.5, col = "blue")
+```
+
+## Constructing a confidence interval for the median survival time by hand
+From the previous plot it looks like lower bound of the confidence interval is 
+between 5 and 6, and the upper bound is between 7 and 8. We can use the output 
+from \texttt{survfit} to make this estimate more precise. In 
+particular, our confidence interval lower bound is the smallest time such that 
+the lower bound  is less than $0.5$. Thus our confidence interval lower bound 
+here is $5.36$.
+
+\footnotesize
+```{r}
+summary(survfit.trace, times = seq(from = 5.30, to = 5.40, by = 0.01))
+```
+\normalsize
+
+## Constructing a confidence interval for the median survival time by hand
+Our confidence interval upper bound is the smallest time such that 
+the upper bound is less than $0.5$. Thus our confidence interval lower bound 
+here is $7.38$.
+
+\footnotesize
+```{r}
+summary(survfit.trace, times = seq(from = 7.35, to = 7.40, by = 0.01))
+```
+\normalsize
+
+## Estimating the median survival time in \texttt{R}
+We've done things the hard way, now let's let \texttt{R} do the rest. Note that 
+the estimate of the median we constructed by hand is slightly off, as there was
+an event in the data set between times $6.52$ and $6.53$ (we were just looking
+at the survival function in $0.01$ year increments).
+
+\footnotesize
+```{r}
+survfit.trace
+```
+\normalsize
+
+
+## What is the median residual survival time?
+
+Let $S(t| t_0)$ denote the survival function conditional on survival at time 
+$t_0$, i.e. $S(t| t_0)=P(T>t|T>t_0)$ is the probability 
+the event of interest happens after time $t$, given that the event hasn't 
+already occurred at time $t_0$. For the TRACE data is the 
+probability a death occurs $t$ years after a heart attack, given death hadn't 
+already occurred at time $t_0$.
+
+The median residual survival time is $t-t_0$, where $t$ is the time at which 
+$S(t|t_0)=0.5$. In other words, after subsetting our population to those that 
+haven't had an event at time $t_0$, the median residual survival time is how 
+long after $t_0$ it takes for half of this sub-population to have the event.
+
+## Estimating the median residual survival time by hand
+
+Suppose we're interested in the median residual survival time, where $t_0=0.25$ 
+(roughly one month). To estimate this by hand, we can follow slide 107 of the 
+chapter 2 slides. In particular, if we can find the smallest time $t^*$ such that 
+$S(t^*)\leq 0.5S(t_0)$, the median residual survival time is $t^*-t_0$.
+
+From the code below, our estimate of $S(t_0)$ is $0.865$. 
+
+\footnotesize
+```{r}
+summary(survfit.trace, times = 0.25)
+```
+\normalsize
+
+## Estimating the median residual survival time by hand
+Th previous slide tells us we want to find the smallest time $t^*$ such that 
+$S(t^*)\leq 0.5\times 0.865=0.4325$.
+
+From the code below, this time is $t^*=7.83$, and thus our estimate of the 
+median residual survival time is $t^*-t_0=7.83-0.25=7.58$ years.
+
+\footnotesize
+```{r}
+summary(survfit.trace, times = seq(from = 7.80, to=7.85, by = 0.01))
+```
+\normalsize
+
+## Estimating the median residual survival time in \texttt{R}
+We've done things the hard way, now let's let \texttt{R} do the rest. Using the 
+\texttt{getmedianres} function, we arrive at an estimate of $7.575$, and a 
+confidence interval of $[6.559, 7.575]$ (note that the upper bound is equal to 
+the estimate, a consequence of the longest observed time corresponding to a 
+censored event).
+
+```{r, echo = FALSE}
+set.seed(42)
+```
+\footnotesize
+```{r}
+getmedianres(s.trace, times = 0.25, confint = TRUE)
+```
+\normalsize
+
+## Q & A time!
+
+Any questions about the material covered today?
+
+Any questions about anything else related to the course?
