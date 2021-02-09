@@ -1,0 +1,352 @@
+---
+title: 'Discussion 5: Cox Proportional Hazards Model'
+author: "Marlena Bannick"
+date: "2/9/2021"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Learning Objectives
+
+- Understand the mechanics and assumptions behind the Cox proportional hazards model
+- Interpret the coefficients from a Cox proportional hazards model
+- Review the relationship between the survival function and the hazard function
+
+## Slides
+
+- Slides are available on Canvas
+- RMarkdown can be checked out via GitHub
+
+```{sh, eval=F}
+git clone
+ https://github.com/mbannick/survival-discussion-section.git
+```
+
+Or just `git pull` if you already have it cloned!
+
+## Poll Everywhere
+
+We will use Poll Everywhere to take some quick anonymous polls
+to stay engaged!
+
+- In your browser on your phone or computer, navigate to PollEv.com/mnorwood
+- You will be prompted to do a UW single sign on with your UW login
+- Alternatively, text MNORWOOD to 22333 to join the session
+
+## Data
+
+```{r}
+library(survival)
+library(flexsurv)
+source("fitparametric.R")
+data("diabetic")
+head(diabetic)
+```
+
+## Data
+
+The "diabetic" dataset from package `survival`
+
+- `id` subject id
+- `laser` laser type: xenon or argon
+- `age` age at diagnosis
+- `eye` a factor with levels of left right
+- `trt` treatment: 0 = no treatment, 1= laser
+- `risk` risk group of 6-12
+- `time` time to event or last follow-up
+- `status` status of 0 = censored or 1 = visual loss
+
+## Regression Modeling: Continuous Outcome
+
+Let's start with something familiar. Consider the linear regression model:
+$$
+y_i = \beta_0 + \beta_1 x_i + \epsilon_i
+$$
+We want to find the "best fitting'' parameters $\beta_0$ and $\beta_1$ to the observed data $y_i$ given some covariate $x_i$ with $i = 1, ..., n$.
+
+$$
+E[y_i | x_i] = \beta_0 + \beta_1 x_i
+$$
+
+## Regression Modeling: Continuous Outcome
+
+Let's use a simpler dataset, `mtcars`. How is weight of the vehicle associated
+with miles per gallon? $y$ is miles per gallon, $x$ is weight (lbs / 1000).
+
+## Regression Modeling: Continuous Outcome
+
+```{r}
+plot(mtcars$mpg ~ mtcars$wt)
+lines(lowess(mtcars$mpg ~ mtcars$wt))
+```
+
+## Regression Modeling: Continuous Outcome
+
+What is $\beta_0$? What is $\beta_1$?
+
+```{r}
+lm(mtcars$mpg ~ mtcars$wt)
+```
+
+## Interpretation of Coefficients
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Interpretation of Coefficients
+
+<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/IOCVvEdxSv0PjJrnnLIuH?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
+## Regression Modeling: Continuous Outcome
+
+```{r}
+plot(mtcars$mpg ~ mtcars$wt)
+abline(lm(mtcars$mpg ~ mtcars$wt), col='red')
+```
+
+## Regression Modeling: Continuous Outcome
+
+How did we know this? This seems simple in this case, but using this tool
+is helpful for more complicated parameterizations:
+
+- $E[y_i | x_i = 0] = \beta_0 + \beta_1 0 = \beta_0$
+- $$E[y_i | x_i = x] - E[y_i | x_i = x - 1] = \\ \beta_0 + \beta_1 x - \beta_0 - \beta_1 (x - 1) = \beta_1$$
+
+## Regression Modeling: Binary and Count Outcomes
+
+Other common types of regression modeling include logistic regression and Poisson
+regression.
+
+Logit link (Logistic regression) ($\text{logit}(p) = \log{p / (1 - p)}$)
+$$
+\text{logit}(E[y_i|x_i]) = \beta_0 + \beta_1 x_i \\
+E[y_i|x_i] = \frac{\exp(\beta_0 + \beta_1 x_i)}{(1 + \exp(\beta_0 + \beta_1 x_i))}
+$$
+Log link (Poisson regression)
+$$
+\log E[y_i|x_i] = \beta_0 + \beta_1 x_i \\
+E[y_i|x_i] = \exp(\beta_0 + \beta_1 x_i)
+$$
+
+## Regression Modeling
+
+Depending on what type of data we want to model **and** what parameter we're interested in,
+we will choose a regression model, and it might be one of these.
+
+Typically, we need to choose a *likelihood* for the data. You can think of this as, if I were to be in charge
+of the data generating mechanism for the world, what probability distribution do I draw from?
+
+## Regression Modeling
+
+- For linear regression, it's a normal likelihood, and the covariates modify the mean.
+- For logistic regression, it's a bernoulli likelihood, and the covariates modify $p$, the probability of having a success. $\beta_1$ represents a log odds ratio, and $e^{\beta_1}$ is an odds ratio.
+
+$$
+\text{logit}P[y_i | x_i = x] - \text{logit}P[y_i | x_i = x - 1] = \beta_1
+$$
+
+- For Poisson regression, it's a Poisson likelihood, and the covariates modify $\lambda$, the rate (or mean) of the Poisson distribution. $\beta_1$ represents a log risk ratio and $e^{\beta_1}$ is a risk ratio.
+
+$$
+\text{log}E[y_i | x_i = x] - \text{log}E[y_i | x_i = x - 1] = \beta_1
+$$
+
+## Regression Modeling: Bridge to the Cox Model
+
+Recall that we saw parametric models for survival times, that accounted for right censoring.
+Could we just make the parameters in those models functions of covariates? And find the best fitting parameters (best fit is based on maximizing the likelihood)?
+
+E.g. in the exponential model, the rate parameter $\lambda$.
+$$\lambda = e^{\beta_0 + \beta_1 x}$$
+
+Why did we exponentiate the linear predictor function ($X\beta$)?
+
+## Regression Modeling: Bridge to the Cox Model
+
+- What parametric distribution would we use? Exponential? Weibull? Generalized Gamma?
+- What parameter in those models do we have the covariates modify?
+- Does that give us a nice interpretation of the $\beta$ parameters?
+
+What if we don't want to make strict assumptions about the parametric form
+of the survival times, but still want a nice interpretation of the $\beta$s?
+
+## Cox Proportional Hazards Model
+
+The idea is that we can relax the assumption about the parametric form that generated the data.
+Instead, we just say that there is some unknown baseline hazard $\lambda_0(t)$ and the covariates modify this hazard in a **proportional** way.
+
+$$\lambda(t) = \lambda_0(t) e^{\beta_1 x_1}$$
+
+Compare this to the fully parametric regression model we had on the previous slide. Where did $\beta_0$ go? And why didn't we have $\lambda(t)$ before?
+
+## Cox Proportional Hazards Model
+
+That's great. But how do we estimate $\beta_1$?
+
+- Ignore the actual event times, instead just consider ranked observations. Which observation failed first, second, etc.?
+- Express the probability that we observed **this person** failing before everybody else who was still alive, in terms of the parameter $\beta_1$, at each unique failure time.
+- This is a function of hazards! (Recall the definition of hazard: probability of experiencing the event in the immediate future given that you've not had the event yet.)
+
+## Cox Proportional Hazards Model
+
+Consider a 3-observation dataset, for simplicity, and model with covariates
+treatment (`trt`) and age (`age`):
+```{r}
+diabetic[121:123,]
+```
+
+## Cox Proportional Hazards Model
+
+The hazard function is $h_0(t) e^{\beta_1 trt + \beta_2 age}$
+
+So the hazard functions for the three observations are (with their ranks):
+
+- 3 Treated left eye in patient 561 aged 15:  $h_0(t) e^{\beta_1 1 + \beta_2 15}$
+- 1 Untreated right eye in patient 561 aged 15: $h_0(t) e^{\beta_1 0 + \beta_2 15}$
+- 2 Untreated left eye in patient 568 aged 10: $h_0(t) e^{\beta_1 0 + \beta_2 10}$
+
+## Cox Proportional Hazards Model
+
+The risk set at time 1 (14.00) includes all three observations.
+The probability that we observed only the untreated right eye in person 561 fail out
+of the three potential eye failures.
+
+$$
+\frac{h_0(t) e^{\beta_1 0 + \beta_2 15}}{h_0(t) e^{\beta_1 1 + \beta_2 15} + h_0(t) e^{\beta_1 0 + \beta_2 15} + h_0(t) e^{\beta_1 0 + \beta_2 10}}
+$$
+Uh oh, how do we get $h_0(t)$??
+
+## Cox Proportional Hazards Model
+
+It doesn't matter because it cancels out on the top and the bottom of the fraction.
+
+$$
+\frac{e^{\beta_1 0 + \beta_2 15}}{e^{\beta_1 1 + \beta_2 15} + e^{\beta_1 0 + \beta_2 15} + e^{\beta_1 0 + \beta_2 10}}
+$$
+
+## Cox Proportional Hazards Model
+
+What is the contribution to the partial likelihood at the second time point?
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Cox Proportional Hazards Model
+
+<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/IFCLh6jMrhhrO1tVwVbqF?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
+## Cox Proportional Hazards Model
+
+Let's do the next one:
+
+The risk set at second failure time (42.17) includes the remaining two untreated eyes, and the younger aged one failed before the older aged one.
+
+$$
+\frac{e^{\beta_1 0 + \beta_2 10}}{e^{\beta_1 0 + \beta_2 15} + e^{\beta_1 0 + \beta_2 10}}
+$$
+
+## Cox Proportional Hazards Model
+
+How do we find the "best fitting'' beta with this partial likelihood? Recall that we started with a probability.
+
+We formed the probability based on the ranked observations. So we want to maximize this probability, because it represents the scenario that we actually observed. The failures really did happen in this order.
+
+Specifically, we want to maximize the product of the probabilities for each unique time, i.e.
+$$
+P[\text{eye 2 failed | only one of eye 1, 2, or 3 failed}] \times \\
+P[\text{eye 3 failed | only one of eye 1 or 3 failed}] \\
+= \frac{e^{\beta_1 0 + \beta_2 15}}{e^{\beta_1 1 + \beta_2 15} + e^{\beta_1 0 + \beta_2 15} + e^{\beta_1 0 + \beta_2 10}}
+ \times \frac{e^{\beta_1 0 + \beta_2 10}}{e^{\beta_1 0 + \beta_2 15} + e^{\beta_1 0 + \beta_2 10}}
+$$
+
+## Cox Proportional Hazards Model
+
+What's going on under the hood...
+```{r}
+# The hazards (ignoring baseline) for each eye
+h1 <- function(b1, b2) exp(b1*1 + b2*15)
+h2 <- function(b1, b2) exp(b1*0 + b2*15)
+h3 <- function(b1, b2) exp(b1*0 + b2*10)
+
+# The probability at the first failure time
+p1 <- function(b1, b2) h2(b1, b2) / (h1(b1, b2) + h2(b1, b2) + h3(b1, b2))
+p2 <- function(b1, b2) h3(b1, b2) / (h1(b1, b2) + h3(b1, b2))
+# We want these to each be large!
+# But they might fight with one another, so...
+
+# The joint probability (or partial likelihood!)
+# This is the function that we want to maximize
+lkl <- function(b1, b2) p1(b1, b2) * p2(b1, b2)
+```
+
+## Cox Proportional Hazards Model
+
+What's the best fitting $\beta_1$ and $\beta_2$?
+
+```{r}
+lkl(b1=0, b2=0.15)
+```
+
+```{r}
+lkl(b1=0.2, b2=0.1)
+```
+
+```{r}
+lkl(b1=0.1, b2=0.1)
+```
+
+Are we really going to sit here all day and try a bunch
+of values for $\beta_1$ and $\beta_2$?
+
+## Cox Proportional Hazards Model
+
+Nope! That's what optimization algorithms are for. And we're going to use them with all the data, not just a 3-observation subset.
+
+```{r}
+diab.surv <- Surv(time=diabetic$time,
+                  event=diabetic$status)
+coxph(diab.surv ~ age + trt, data=diabetic)
+```
+
+## Cox Proportional Hazards Model
+
+What is the interpretation of the un-exponentiated treatment coefficient?
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Cox Proportional Hazards Model
+
+<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/M1gVTcS04Io2KN9r7HkbY?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
+## Cox Proportional Hazards Model
+
+How did we know this? Go back to the tool we used for linear regression.
+
+- $h(t|trt = 1, age) = h_0(t) \exp(\beta_1 1 + \beta_2 age)$
+- $h(t|trt = 0, age) = h_0(t) \exp(\beta_1 0 + \beta_2 age)$
+
+$$
+\log h(t|trt = 1, age) - \log h(t|trt = 0, age) \\
+= \log h_0(t) + \beta_1 1 + \beta_2 age - \log h_0(t) - \beta_2 age = \beta_1
+$$
+$$
+\log \frac{h(t|trt = 1, age)}{h(t|trt = 0, age)} = \beta_1 \\
+\frac{h(t|trt = 1, age)}{h(t|trt = 0, age)} = \exp(\beta_1)
+$$
+
+## Feedback
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Feedback
+
+<iframe src="https://embed.polleverywhere.com/clickable_images/OXzshdjBPYp2aJypF8miy?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
+## Feedback
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Feedback
+
+<iframe src="https://embed.polleverywhere.com/multiple_choice_polls/qtovldT6jLDLAlhXUaH9x?controls=none&short_poll=true" width="800px" height="600px"></iframe>
