@@ -13,7 +13,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 - Understand the mechanics and assumptions behind the Cox proportional hazards model
 - Interpret the coefficients from a Cox proportional hazards model
-- Review the relationship between the survival function and the hazard function
 
 ## Slides
 
