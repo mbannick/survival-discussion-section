@@ -3,8 +3,8 @@ title: 'Discussion 3: Parametric and Non-Parametric Testing Differences in Survi
 author: "Marlena Bannick"
 date: "1/24/2021"
 output:
-  ioslides_presentation: default
   beamer_presentation: default
+  ioslides_presentation: default
   slidy_presentation: default
 ---
 
@@ -208,7 +208,7 @@ It sums these observed counts minus the expected counts (death does *not* differ
 ## Differences in Whole Survival Experience -- Logrank Test
 
 - $H_0$: $S_0(t) = S_1(t)$ over all $t$
-- $H_A$: $S_0(t) = S_1(t)$ *for any $t$*
+- $H_A$: $S_0(t) \neq S_1(t)$ *for any $t$*
 - **Test Statistic**: the difference between observed and expected counts over all times, summed up, squared, divided by variance
 - **Null Distribution**: Chi-squared
 - **Key Assumption**: Will have low power if the hazard functions cross (recall that the summation is on the **inside** of the square)
