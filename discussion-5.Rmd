@@ -5,8 +5,6 @@ date: "2/9/2021"
 output: ioslides_presentation
 ---
 
-## TEST ADD!
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -204,9 +202,9 @@ The hazard function is $h_0(t) e^{\beta_1 trt + \beta_2 age}$
 
 So the hazard functions for the three observations are (with their ranks):
 
-- 3 Treated left eye in patient 561 aged 15:  $h_0(t) e^{\beta_1 1 + \beta_2 15}$
-- 1 Untreated right eye in patient 561 aged 15: $h_0(t) e^{\beta_1 0 + \beta_2 15}$
-- 2 Untreated left eye in patient 568 aged 10: $h_0(t) e^{\beta_1 0 + \beta_2 10}$
+- eye 1, rank 3 Treated left eye in patient 561 aged 15:  $h_0(t) e^{\beta_1 1 + \beta_2 15}$
+- eye 2, rank 1 Untreated right eye in patient 561 aged 15: $h_0(t) e^{\beta_1 0 + \beta_2 15}$
+- eye 3, rank 2 Untreated left eye in patient 568 aged 10: $h_0(t) e^{\beta_1 0 + \beta_2 10}$
 
 ## Cox Proportional Hazards Model
 
@@ -241,10 +239,10 @@ What is the contribution to the partial likelihood at the second time point?
 
 Let's do the next one:
 
-The risk set at second failure time (42.17) includes the remaining two untreated eyes, and the younger aged one failed before the older aged one.
+The risk set at second failure time (42.17) includes the aged 10 observation, untreated, and aged 15 observation, treated, and the untreated one failed before the treated one (actually the treated one never failed, it was censored).
 
 $$
-\frac{e^{\beta_1 0 + \beta_2 10}}{e^{\beta_1 0 + \beta_2 15} + e^{\beta_1 0 + \beta_2 10}}
+\frac{e^{\beta_1 0 + \beta_2 10}}{e^{\beta_1 1 + \beta_2 15} + e^{\beta_1 0 + \beta_2 10}}
 $$
 
 ## Cox Proportional Hazards Model
@@ -258,7 +256,7 @@ $$
 P[\text{eye 2 failed | only one of eye 1, 2, or 3 failed}] \times \\
 P[\text{eye 3 failed | only one of eye 1 or 3 failed}] \\
 = \frac{e^{\beta_1 0 + \beta_2 15}}{e^{\beta_1 1 + \beta_2 15} + e^{\beta_1 0 + \beta_2 15} + e^{\beta_1 0 + \beta_2 10}}
- \times \frac{e^{\beta_1 0 + \beta_2 10}}{e^{\beta_1 0 + \beta_2 15} + e^{\beta_1 0 + \beta_2 10}}
+ \times \frac{e^{\beta_1 0 + \beta_2 10}}{e^{\beta_1 1 + \beta_2 15} + e^{\beta_1 0 + \beta_2 10}}
 $$
 
 ## Cox Proportional Hazards Model
