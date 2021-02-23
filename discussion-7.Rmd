@@ -128,7 +128,7 @@ legend("topright", c("nonparametric estimator", "exponential", "Weibull", "gener
 
 ## Estimate a cumulative hazard function
 
-If we have some survival times, potentially with censoring, how can we estimate a survival function?
+If we have some survival times, potentially with censoring, how can we estimate a cumulative hazard function?
 
 - *Parametric*: We know how the cumulative hazard function and the survival function are related, and we know the formula for the survival function (since we picked a particular distribution) so we take our estimated parameters from the parametric distribution and get the survival function, then take the negative log.
 
@@ -169,7 +169,7 @@ legend("topleft", c("parametric", "non-parametric"), col=c("blue", "black"),
 
 ## Estimate a hazard function
 
-If we have some survival times, potentially with censoring, how can we estimate a survival function?
+If we have some survival times, potentially with censoring, how can we estimate a hazard function?
 
 - *Parametric*: Again, we know the specific parametric form because we chose it! And we know that:
 
@@ -295,7 +295,7 @@ survdiff(diab.surv ~ trt + strata(risk), data=diabetic)
 - *Parametric*: Proportional hazards model. We just did this! Estimate a parameter for the baseline hazard, and then coefficients that represent the difference in log hazard between unit differences of the predictors. $\exp(\beta)$ is a hazard ratio. All using maximum likelihood estimation. E.g. exponential:
 
 $$
-h(t) = h_0(t) \exp(\beta_0 + \beta_1 x_1 + \cdots + \beta_p x_p) \quad h_0(t) = \lambda
+h(t) = h_0(t) \exp(\beta_1 x_1 + \cdots + \beta_p x_p) \quad h_0(t) = \lambda
 $$
 
 By including multiple $x$, the interpretation of the $\beta$ parameters is the hazard ratio comparing two groups, but where all other $x$ are held constant.
