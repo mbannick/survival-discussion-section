@@ -3,9 +3,10 @@ title: 'BIOST 537: Discussion 7'
 author: "Marlena Bannick"
 date: "2/23/2021"
 output:
-  ioslides_presentation: default
+  beamer_presentation: default
   html_document:
     theme: yeti
+  ioslides_presentation: default
 ---
 
 ```{r setup, include=FALSE}
@@ -366,7 +367,7 @@ Note, if we parameterized $A^*(x) = \exp(-\phi_1 x_1 - \cdots + \phi_p x_p)$, th
 
 ## Estimating acceleration factors on time scale
 
-We want to estimate the $\phi$ parameters in the acceleration factor. It turns out that for the Weibull parameterization (includes exponential), $\phi = -\beta$. So HR = 1/acceleration factor from `flexsurvreg` package.
+We want to estimate the $\phi$ parameters in the acceleration factor. It turns out that for the Weibull parameterization there is a direct relationship between the HR and acceleration factor.
 
 ```{r}
 mod <- flexsurvreg(Surv(time, status) ~ trt, 
@@ -377,7 +378,7 @@ mod$res
 ## Estimating acceleration factors on time scale
 
 If we had used `dist="exponential"`, the `flexsurvreg` function would have returned a hazard ratio.
-With `dist="weibull"` it returns an deceleration factor (so 1/acceleration factor).
+With `dist="weibull"` it returns an average increase in survival time (1/acceleration factor).
 
 ```{r}
 exp(mod$res["trt", "est"])
