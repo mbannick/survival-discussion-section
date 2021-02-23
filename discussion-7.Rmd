@@ -40,6 +40,22 @@ to stay engaged!
 - You will be prompted to do a UW single sign on with your UW login
 - Alternatively, text MNORWOOD to 22333 to join the session
 
+## Understanding Check
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Understanding Check
+
+<iframe src="https://embed.polleverywhere.com/clickable_images/wHlXBP3SNtz4o5MfCU3VV?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
+## Priorities
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Priorities
+
+<iframe src="https://embed.polleverywhere.com/discourses/G7eZBJhvlQDMqowmu2U1O?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
 ## Data
 
 ```{r}
@@ -350,16 +366,31 @@ Note, if we parameterized $A^*(x) = \exp(-\phi_1 x_1 - \cdots + \phi_p x_p)$, th
 
 ## Estimating acceleration factors on time scale
 
-We want to estimate the $\phi$ parameters in the acceleration factor. It turns out that for the Weibull parameterization (includes exponential), $\phi = \beta$. So HR = acceleration factor.
+We want to estimate the $\phi$ parameters in the acceleration factor. It turns out that for the Weibull parameterization (includes exponential), $\phi = -\beta$. So HR = 1/acceleration factor from `flexsurvreg` package.
 
 ```{r}
 mod <- flexsurvreg(Surv(time, status) ~ trt, 
-                   data=diabetic, dist="exp")
+                   data=diabetic, dist="weibull")
 mod$res
 ```
 
 ## Estimating acceleration factors on time scale
 
-We fit a proportional hazards model and estimated the hazard ratio, but because of the relationship between the PH and AFT models for the Weibull family distributions, but we could just take $A = \exp(-0.81169)$ to get the acceleration factor. So time is accelerated by a factor of 0.444 in the treated group (so, decelerated).
+If we had used `dist="exponential"`, the `flexsurvreg` function would have returned a hazard ratio.
+With `dist="weibull"` it returns an deceleration factor (so 1/acceleration factor).
 
-Translates to average survival time in the treated group being 1/0.444 = 2.25 times as long as that in the untreated group.
+```{r}
+exp(mod$res["trt", "est"])
+1 / exp(mod$res["trt", "est"])
+```
+
+Translates to average survival time in the treated group being 1/0.377 = 2.65 times as long as the untreated group.
+
+## Understanding Check
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Understanding Check
+
+<iframe src="https://embed.polleverywhere.com/clickable_images/p6IWqrBo0jEYFX4BmFwBe?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
