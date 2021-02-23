@@ -1,0 +1,187 @@
+---
+title: 'Discussion 6: Cox Proportional Hazards Models'
+author: "Serge Aleshin-Guendel"
+date: "2/15/2021"
+output:
+  beamer_presentation: default
+fontsize: 10pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Learning Objectives
+
+- Fitting and describing Cox proportional hazards models 
+- Interpreting interactions
+- Tricky hazard ratios
+
+## Slides
+
+- Slides are available on Canvas
+- RMarkdown can be checked out via GitHub
+
+```{sh, eval=F}
+git clone
+ https://github.com/mbannick/survival-discussion-section.git
+```
+
+## Reading in the TRACE data
+
+We will use the TRACE data as in the second discussion section.
+
+```{r, warning = FALSE}
+# Load relevant packages 
+library(foreign)
+library(survival)
+
+# Read in TRACE data
+trace <- read.dta("traceST11.dta")
+
+# Create a Surv object using the TRACE data
+s.trace <- with(trace, Surv(time, status == 9)) 
+
+# Mean centered age
+trace$age_c <- trace$age - mean(trace$age)
+```
+
+## What model do you want to fit?
+
+Suppose we want to understand whether the association between time to death due to heart attack 
+and diabetes, adjusting for age, differs by age. What model can be use to address this
+question?
+
+Given that the title of this discussion section is ``Cox Proportional Hazards Models", 
+let's see see if we can use the Cox model!
+
+## What model do you want to fit?
+
+Consider the model where the hazard is parameterized as
+$$ h(t \mid {diabetes}, {age_c}) = h_0(t) e^{\beta_0 \times {diabetes} + 
+ \beta_1 \times {age_c} + \beta_2 \times {diabetes} \times {age_c}}.$$
+Denote the mean age in the sample by $\overline{{age}}$
+We will use the age variable re-centered around it's mean, i.e. ${age_c}$
+is the age of an individual minus $\overline{{age}}$. 
+
+How should we interpret the coefficients $\beta_0,\beta_1,\beta_2$? Interpreting
+interactions can be difficult, even for statisticians! Heuristically, when $\beta_2\neq 0$,
+the association between time to death and diabetes differs by age, and when
+$\beta_2=0$,
+the association between time to death and diabetes doesn't differ by age.
+
+## Interpretting interactions
+
+$$ h(t \mid {diabetes},{age_c})=h_0(t)e^{\beta_0\times{diabetes}+
+\beta_1\times{age_c} + \beta_2\times{diabetes}\times{age_c}}.$$
+
+Let's start with $\beta_0$. Suppose we have two individuals that are both age
+$\overline{{age}}$, but one individual is diabetes positive, and the other
+is diabetes negative. Then we have that
+$$e^{\beta_0}=\frac{h(t \mid {diabetes}=1,{age_c}=\overline{{age}})}{h(t \mid {diabetes}=0,{age_c}=\overline{{age}})}$$
+is the ratio of the hazards for these two individuals.
+
+## Interpretting interactions
+
+$$ h(t \mid {diabetes},{age_c})=h_0(t)e^{\beta_0\times{diabetes}+
+\beta_1\times{age_c} + \beta_2\times{diabetes}\times{age_c}}.$$
+
+Next let's consider $\beta_1$. Suppose we have two individuals that are both diabetes negative, where one individual is $a$ years old, and the other is $a+1$ years old. Then we have that
+$$e^{\beta_1}=\frac{h(t \mid {diabetes}=0,{age_c}=a+1)}{h(t \mid {diabetes}=0,{age_c}=a)}$$
+is the ratio of the hazards for these two individuals.
+
+## Interpretting interactions
+
+$$ h(t \mid {diabetes},{age_c})=h_0(t)e^{\beta_0\times{diabetes}+
+\beta_1\times{age_c} + \beta_2\times{diabetes}\times{age_c}}.$$
+
+Finally let's get to $\beta_2$. Suppose we have two individuals that are diabetes positive, where one individual is $a$ years old, and the other is $a+1$ years old. Then we have that
+$$e^{\beta_1 + \beta_2}=\frac{h(t \mid {diabetes}=1,{age_c}=a+1)}{h(t \mid {diabetes}=1,{age_c}=a)}$$
+is the ratio of the hazards for these two individuals.
+
+Now suppose as in the last slide that we have two individuals that are both diabetes negative, where one individual is $a$ years old, and the other is $a+1$ years old. Then we have that
+$$e^{\beta_1}=\frac{h(t \mid {diabetes}=0,{age_c}=a+1)}{h(t \mid {diabetes}=0,{age_c}=a)}$$
+is the ratio of the hazards for these two individuals.
+
+## Interpretting interactions
+
+$$ h(t \mid {diabetes},{age_c})=h_0(t)e^{\beta_0\times{diabetes}+
+\beta_1\times{age_c} + \beta_2\times{diabetes}\times{age_c}}.$$
+
+Thus, we have that the ratio of these two hazard ratios is 
+$$e^{\beta_2}=\frac{e^{\beta_1 + \beta_2}}{e^{\beta_1}}.$$
+
+In general, this is why interactions are hard to interpret correctly in regression
+models: they're typically differences of differences or ratios of ratios. Heuristic interpretations of interactions are intuitive, but are often hiding complicated details.
+
+## Fitting the model
+This model is easy to fit in R:
+\footnotesize
+```{r, warning = FALSE}
+cox_fit <- coxph(s.trace ~ diabetes + age_c + age_c * diabetes, data = trace)
+summary(cox_fit)
+```
+\normalsize
+
+## Does the association differ by age?
+
+Our original question was whether the association between time to death due to heart attack 
+and diabetes, adjusting for age, differs by age. In this scenario, our null hypothesis would be that the association doesn't differ by age, i.e. $\beta_2=0$ or $e^{\beta_2}=1$.
+
+Based on the model fit from the last slide, our estimate of $e^{\beta_2}$ is $1.039$, with a $95\%$ confidence interval of $[0.997, 1.084]$. As thus confidence interval contains $1$, at the $\alpha=0.05$ significance level, we fail to reject the null hypothesis that the association doesn't differ by age.
+
+## Tricky hazard ratios
+
+Suppose now we'd like to estimate the hazard ratio comparing individuals that are diabetes negative and $60$ to individuals that are diabetes positive and $70$. This ratio is given by 
+$$\frac{h(t \mid {diabetes}=0,{age_c}=60-\overline{age})}{h(t \mid {diabetes}=1,{age_c}=70-\overline{age})}=\frac{e^{
+\beta_1\times(60-\overline{age})}}{e^{\beta_0+
+\beta_1\times(70-\overline{age}) + \beta_2\times(70-\overline{age})}}=e^{-\beta_0 -10 \times\beta_1- (70-\overline{age})\times\beta_2}.$$
+
+
+## Tricky hazard ratios
+
+Coming up with a point estimate is easy! 
+\footnotesize
+```{r, warning = FALSE}
+est <- exp(-coef(cox_fit)["diabetes"]
+          - 10 * coef(cox_fit)["age_c"]
+          + (70 - mean(trace$age)) * coef(cox_fit)["diabetes:age_c"])
+est
+```
+\normalsize
+
+Coming up with a confidence interval is a bit trickier...
+
+## Tricky hazard ratios
+
+We will use the delta method to come up with standard errors, using a function provided
+in the \texttt{msm} package.
+\footnotesize
+```{r, warning = FALSE}
+library(msm)
+mean_age <- mean(trace$age)
+se <- deltamethod(g = ~ exp((-1 * x1 - 10 * x2 + (70 - mean_age) * x3)),
+                  mean = 
+                      coef(cox_fit)[c("diabetes", "age_c", "diabetes:age_c")],
+                  cov = 
+                      vcov(cox_fit)[c("diabetes", "age_c", "diabetes:age_c"),
+                                    c("diabetes", "age_c", "diabetes:age_c")])
+se
+```
+\normalsize
+
+## Tricky hazard ratios
+
+Based on the last two slides, a $95\%$ confidence interval for the desired hazard ratio is calculated as 
+```{r, warning = FALSE}
+c(est - 1.96 * se, est + 1.96 * se)
+```
+
+An alternative way to arrive at a confidence interval would be to come up with an estimate and standard error for the log hazard ratio, and then exponentiate the calculated confidence interval. This alternative way avoids issues where you the lower bound of our confidence interval could be negative!
+
+
+## Q & A time!
+
+Any questions about the material covered today?
+
+Any questions about anything else related to the course?
