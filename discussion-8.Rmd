@@ -1,0 +1,229 @@
+---
+title: 'Discussion 8: Accelerated Failure Time Models'
+author: "Serge Aleshin-Guendel"
+date: "3/2/2021"
+output:
+  beamer_presentation: default
+fontsize: 10pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Learning Objectives
+
+- Fitting accelerated failure time models 
+- Interpreting parameters in an accelerated failure time model
+- Estimating median survival times and ratios of mean survival times
+
+## Slides
+
+- Slides are available on Canvas
+- RMarkdown can be checked out via GitHub
+
+```{sh, eval=F}
+git clone
+ https://github.com/mbannick/survival-discussion-section.git
+```
+
+## Reading in the TRACE data
+
+We will use the TRACE data as in the second discussion section.
+
+```{r, warning = FALSE}
+# Load relevant packages 
+library(foreign)
+library(survival)
+library(flexsurv)
+
+# Read in TRACE data
+trace <- read.dta("traceST11.dta")
+
+# Create a Surv object using the TRACE data
+s.trace <- with(trace, Surv(time, status == 9)) 
+
+```
+
+## What model do you want to fit?
+
+Suppose we want to understand the association between time to death due to heart attack 
+and diabetes, adjusting for age. What model can we use to address this question?
+
+Given that the title of this discussion section is ``Accelerated Failure Time Models", 
+let's see see if we can use an accelerated failure time model!
+
+## What model do you want to fit?
+
+Consider the model where the survival function is parameterized as
+$$ S(t \mid {diabetes}, {age}) = S_0(A({diabetes}, {age})t),$$
+where $$A({diabetes}, {age}) = e^{- \beta_1 \times {diabetes} - 
+ \beta_2 \times {age}}$$
+is the acceleration factor, and 
+$S_0(t)=\exp(-(e^{-\beta_0}t)^a)$ is a Weibull baseline survival function.
+
+Let's fit this model and then talk about interpreting the different parameters.
+
+## Fitting an AFT
+Fitting a Weibull AFT is very easy with the \texttt{flexsurvreg} function:
+\footnotesize
+```{r, warning = FALSE}
+weibull.AFT <- flexsurvreg(s.trace ~ diabetes + age, data = trace, 
+                           dist = "weibull")
+
+weibull.AFT
+```
+\normalsize
+
+## Interpretting the Parameters
+
+Recall from our model definition that our acceleration factor is 
+$A({diabetes}, {age}) = e^{- \beta_1 \times {diabetes} - \beta_2 \times {age}}$.
+Thus we have the following interpretation of $\beta_1$ from slide 13 of Chapter 4:
+for two subpopulations of the same age differing in diabetes status, the mean (or median) survival time of individuals in the subpopulation corresponding to diabetes positive individuals is $e^{\beta_1}$ times the mean (or median) survival time of individuals in the subpopulation corresponding to diabetes negative individuals.
+
+From the model fit, our estimate of $e^{\beta_1}$ is $0.465$, with a 
+$95\%$ confidence interval of $[0.249, 0.868]$.
+
+## Interpretting the Parameters
+
+Recall from our model definition that our acceleration factor is 
+$A({diabetes}, {age}) = e^{- \beta_1 \times {diabetes} - \beta_2 \times {age}}$.
+Thus we have the following interpretation of $\beta_2$ from slide 13 of Chapter 4:
+for two subpopulations of the same diabetes status, differing in age by $1$ year, the mean (or median) survival time of individuals in the subpopulation corresponding to the older individuals is $e^{\beta_2}$ times the mean (or median) survival time of individuals in the subpopulation corresponding to the younger individuals.
+
+From the model fit, our estimate of $e^{\beta_2}$ is $0.897$, with a 
+$95\%$ confidence interval of $[0.877, 0.918]$.
+
+## Do These Results Agree With a Cox Model?
+Suppose we instead fit a Cox model with the hazard function
+$$ h(t \mid {diabetes}, {age}) = h_0(t) e^{\gamma_0 \times {diabetes} + 
+ \gamma_1 \times {age}}:$$
+\footnotesize
+```{r, warning = FALSE}
+cox_fit <- coxph(s.trace ~ diabetes + age, data = trace)
+summary(cox_fit)
+```
+\normalsize
+
+## Do These Results Agree With a Cox Model?
+Do the results of the Cox model agree ``qualitatively" with the results from the accelerated failure time model?
+
+Before answering this question, we need to think about the difference in the parameter 
+interpretations from each model. For the Cox model, we're interpreting hazard ratios. Very roughly, a hazard ratio greater (less) than 1 between two groups means one group is more (less) likely to have the event. For the AFT model, we're interpretting ratios of mean survival times. Very roughly, a ratios of mean survival times greater (less) than 1 between two groups means one group is less (more) likely to have the event. 
+
+Thus the Cox model and the AFT model will qualitatively agree when a hazard ratio is greater than 1 and a ratio of mean survival times is less than 1 (and vice versa).
+
+## Do These Results Agree With a Cox Model?
+
+For the relationship between time to death and diabetes: positive diabetes status is associated with an larger hazard under the Cox model, and a smaller mean survival time under the AFT model.
+
+For the relationship between time to death and age: older age is associated with an larger hazard under the Cox model, and a smaller mean survival time under the AFT model.
+
+Thus in both cases, the AFT model and the COX model qualitatively agree.
+
+## Estimating a tricky ratio of mean survival times
+
+Suppose we want to estimate the ratio of mean time to death comparing individuals that are diabetes positive and aged 60 to individuals that are diabetes negative and aged 75. This ratio is 
+given by
+$$
+\dfrac{E[T\mid {diabetes}=1, {age}=60]}{E[T\mid {diabetes}=0, {age}=75]}
+=\dfrac{e^{\beta_1 + 60 \times \beta_2}E[T\mid {diabetes}=0, {age}=0]}{e^{75 \times \beta_2}E[T\mid {diabetes}=0, {age}=0]}
+$$
+and thus
+$$
+\dfrac{E[T\mid {diabetes}=1, {age}=60]}{E[T\mid {diabetes}=0, {age}=75]}
+=e^{\beta_1 - 15\times\beta_2}.
+$$
+
+## Estimating a tricky ratio of mean survival times
+Coming up with a point estimate is easy! 
+\footnotesize
+```{r, warning = FALSE}
+est <- exp(coef(weibull.AFT)["diabetes"] - 15 * coef(weibull.AFT)["age"])
+est
+```
+\normalsize
+
+Coming up with a confidence interval is a bit trickier...
+
+## Estimating a tricky ratio of mean survival times
+
+We will use the delta method to come up with standard errors, using a function provided
+in the \texttt{msm} package.
+\footnotesize
+```{r, warning = FALSE}
+library(msm)
+se <- deltamethod(g = ~ exp(x1 - 15 * x2),
+                  mean = 
+                      coef(weibull.AFT)[c("diabetes", "age")],
+                  cov = 
+                      vcov(weibull.AFT)[c("diabetes", "age"),
+                                        c("diabetes", "age")])
+se
+```
+\normalsize
+
+## Estimating a tricky ratio of mean survival times
+
+Based on the last two slides, a $95\%$ confidence interval for the desired ratio of mean survival times is calculated as 
+```{r, warning = FALSE}
+c(est - 1.96 * se, est + 1.96 * se)
+```
+
+An alternative way to arrive at a confidence interval would be to come up with an estimate and standard error for the log ratio of mean survival times, and then exponentiate the calculated confidence interval. This alternative way avoids issues where you the lower bound of our confidence interval could be negative!
+
+## Estimating a median survival time for a subgroup
+
+Suppose we want to estimate the median survival time for individuals that are diabetes positive and aged 60. We have that this median can be written as
+$$
+\text{med}(T\mid {diabetes}=1, {age}=60) = e^{\beta_1 + 60 \times \beta_2}\text{med}(T\mid {diabetes}=0, {age}=0)
+$$
+and thus 
+$$
+\text{med}(T\mid {diabetes}=1, {age}=60) = e^{\beta_1 + 60 \times \beta_2}\times {\log(2)}^{1/shape} \times scale
+$$
+where $shape$ and $scale$ are the shape and scale parameters of the baseline Weibull survival function.
+
+## Estimating a median survival time for a subgroup
+
+Coming up with a point estimate is easy! 
+\footnotesize
+```{r, warning = FALSE}
+est <- exp(coef(weibull.AFT)["diabetes"] + 60 * coef(weibull.AFT)["age"]) *
+    log(2) ^ (1 / exp(coef(weibull.AFT)["shape"])) * 
+    exp(coef(weibull.AFT)["scale"])
+est
+```
+\normalsize
+
+Coming up with a confidence interval is a bit trickier...
+
+## Estimating a median survival time for a subgroup
+We will again use the delta method to come up with standard errors, using a function provided
+in the \texttt{msm} package.
+\footnotesize
+```{r, warning = FALSE}
+library(msm)
+se <- deltamethod(g = ~ exp(x1 + 60 * x2) * log(2) ^ (1 / exp(x3)) * exp(x4),
+                  mean = 
+                      coef(weibull.AFT)[c("diabetes", "age", "shape", "scale")],
+                  cov = 
+                      vcov(weibull.AFT)[c("diabetes", "age", "shape", "scale"),
+                                        c("diabetes", "age", "shape", "scale")])
+se
+```
+\normalsize
+
+## Estimating a median survival time for a subgroup
+Based on the last two slides, a $95\%$ confidence interval for the desired ratio of mean survival times is calculated as 
+```{r, warning = FALSE}
+c(est - 1.96 * se, est + 1.96 * se)
+```
+
+
+## Q & A time!
+
+Any questions about the material covered today?
+
+Any questions about anything else related to the course?
