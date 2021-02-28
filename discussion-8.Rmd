@@ -36,6 +36,7 @@ We will use the TRACE data as in the second discussion section.
 library(foreign)
 library(survival)
 library(flexsurv)
+library(msm)
 
 # Read in TRACE data
 trace <- read.dta("traceST11.dta")
@@ -153,7 +154,6 @@ We will use the delta method to come up with standard errors, using a function p
 in the \texttt{msm} package.
 \footnotesize
 ```{r, warning = FALSE}
-library(msm)
 se <- deltamethod(g = ~ exp(x1 - 15 * x2),
                   mean = 
                       coef(weibull.AFT)[c("diabetes", "age")],
@@ -204,7 +204,6 @@ We will again use the delta method to come up with standard errors, using a func
 in the \texttt{msm} package.
 \footnotesize
 ```{r, warning = FALSE}
-library(msm)
 se <- deltamethod(g = ~ exp(x1 + 60 * x2) * log(2) ^ (1 / exp(x3)) * exp(x4),
                   mean = 
                       coef(weibull.AFT)[c("diabetes", "age", "shape", "scale")],
