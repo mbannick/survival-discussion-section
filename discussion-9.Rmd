@@ -1,12 +1,13 @@
 ---
-title: 'BIOST 537: Discussion 9'
+title: 'BIOST 537: Discussion 9: Main Concepts + Time-Varying Covariates'
 author: "Marlena Bannick"
 date: "2/23/2021"
 output:
-  beamer_presentation: default
+  ioslides_presentation: default
   html_document:
     theme: yeti
-  ioslides_presentation: default
+  slidy_presentation: default
+  beamer_presentation: default
 ---
 
 ```{r setup, include=FALSE}
@@ -37,10 +38,12 @@ Or just `git pull` if you already have it cloned!
 ## Data
 
 ```{r}
+library(data.table)
 library(survival)
 library(flexsurv)
 source("fitparametric.R")
 data("diabetic")
+diabetic <- data.table(diabetic)
 head(diabetic)
 ```
 
@@ -120,9 +123,20 @@ We can also include multiple $x$ here to adjust for confounding. OR we can use s
 
 **NEW**: What about if we have time-varying covariates?
 
+## Cox PH
+
+Let's fit a Cox PH model to understand the relationship between treatment and survival, controlling for risk level. Let's focus on just one eye.
+
+```{r}
+df <- diabetic[eye == "left"]
+diab.surv <- Surv(time=df$time,
+                  event=df$status)
+coxph(diab.surv ~ trt + risk, data=df)
+```
+
 ## Time-Varying Covariates
 
-It's conceivable that more than just a subjects' baseline covariates impacts their risk of failure.
+It's conceivable that more than just a subject's baseline covariates impacts their risk of failure.
 Maybe we want to:
 
 - Properly account for a confounding variable that varies over time
@@ -134,37 +148,129 @@ Consider covariates that look like $z_i(t)$ rather than $z_i$ for the $i^{th}$ s
 
 ## Time-Varying Covariates
 
-Recall when we covered the Cox PH model, and the stratified Cox PH model, the way that we estimated the parameters was with the partial likelihood.
+Recall when we covered the Cox PH model, and the stratified Cox PH model, how we estimated the parameters the partial likelihood approach.
 
 In the partial likelihood:
+
 - We compared *ranked* failure times rather than actual failure times
 - The comparisons were made against other individuals in the risk set. For stratified Cox, we stratified the risk sets.
+- The comparisons were made using only the baseline covariates.
 
-## Estimate a hazard ratio
+## Time-Varying Covariates
 
-Using `coxph` to semi-parametrically estimate a hazard ratio, we would do:
+In the time-varying covariates scenario, failure times are still not included in the model in any way, but(!!) we need to use those failure times to extract the correct covariate values $z_i(t)$ for each subject that is currently in the risk set.
+
+More of a data manipulation exercise than drastically changing the model. Which makes sense in terms of what we have to do as users of this method: we need to get our data into the correct structure using `tmerge`.
+
+## Time-Varying Covariates
+
+For the data manipulations in class, we used the `tmerge` function take a data set that already had a time that signified the change point of something happening.
+
+We're going to modify the diabetic data set with some fake changes in a different way than `tmerge` to understand the mechanics of what's happening.
+
+## Time-Varying Covariates
 
 ```{r}
-coxph(diab.surv ~ trt, data=diabetic)
+# Create a new diabetic dataset
+# And only take one eye, they were randomized
+df <- diabetic[eye == "left"]
+new.df <- data.table()
+```
+
+## Time-Varying Covariates
+
+```{r, eval=F}
+for(i in unique(df$id)){
+  # Subset to only this person
+  sub <- df[id == i]
+  
+  # What is this person's risk level and failure time
+  risk <- sub$risk; time <- sub$time
+  
+  # Calculate the time that the risk level will change
+  change.time <- time/sample(2:10, 1)
+  
+  # Decide whether their risk will go up or down
+  bin <- rbinom(1, size=1, prob=0.5)
+  increase <- ifelse(bin, 1, -1)
+```
+
+## Time-Varying Covariates
+
+```{r, eval=FALSE}
+  # Modify existing entry
+  sub[, tstart := 0]
+  sub[, tstop := change.time]
+  
+  # Duplicate the entry
+  sub2 <- copy(sub)
+  sub2[, tstart := change.time]
+  sub2[, tstop := time]
+  sub2[, risk := risk + increase]
+  
+  # Append to data frame
+  new.df <- rbind(new.df, sub)
+  new.df <- rbind(new.df, sub2)
+}
+```
+
+```{r, eval=TRUE, echo=FALSE}
+for(i in unique(df$id)){
+  # Subset to only this person
+  sub <- df[id == i]
+  
+  # What is this person's risk level and failure time
+  risk <- sub$risk; time <- sub$time
+  
+  # Calculate the time that the risk level will change
+  change.time <- time/sample(2:10, 1)
+  
+  # Decide whether their risk will go up or down
+  bin <- rbinom(1, size=1, prob=0.5)
+  increase <- ifelse(bin, 1, -1)
+  
+  # Modify existing entry
+  sub[, tstart := 0]
+  sub[, tstop := change.time]
+  
+  # Duplicate the entry
+  sub2 <- copy(sub)
+  sub2[, tstart := change.time]
+  sub2[, tstop := time]
+  sub2[, risk := risk + increase]
+  
+  # Append to data frame
+  new.df <- rbind(new.df, sub)
+  new.df <- rbind(new.df, sub2)
+}
+```
+
+## Time-Varying Covariates
+
+```{r}
+head(df)
+```
+
+```{r}
+head(new.df)
+```
+
+## Estimate a hazard ratio with time-varying covariates
+
+Now we can use `coxph` just like we normally would, but we have our augmented dataset with two rows per individual! We still get one coefficient for risk, but it's taking into account that the risk values differ for different people over time.
+
+Also, note that because of how we made `tstart` and `tstop`, the same individual will never be in the risk set twice (it's almost like you're a new individual that had delayed entry!).
+
+## Estimate a hazard ratio with time-varying covariates
+
+```{r}
+diab.surv <- Surv(time=new.df$tstart,
+                  time2=new.df$tstop,
+                  event=new.df$status)
+coxph(diab.surv ~ trt + risk, data=new.df)
 ```
 
 Note that we now have nothing that tells us about the baseline hazard. We didn't estimate it!
-
-## Estimate a hazard ratio
-
-What about controlling for a confounder?
-
-```{r}
-coxph(diab.surv ~ trt + risk, data=diabetic)
-```
-
-## Estimate a hazard ratio
-
-What about more **flexibly** controlling for a confounder?
-
-```{r}
-coxph(diab.surv ~ trt + strata(risk), data=diabetic)
-```
 
 ## Estimate acceleration factors on time scale
 
@@ -201,12 +307,3 @@ exp(mod$res["trt", "est"])
 ```
 
 Translates to average survival time in the treated group being 1/0.377 = 2.65 times as long as the untreated group.
-
-## Understanding Check
-
-<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
-
-## Understanding Check
-
-<iframe src="https://embed.polleverywhere.com/clickable_images/p6IWqrBo0jEYFX4BmFwBe?controls=none&short_poll=true" width="800px" height="600px"></iframe>
-
