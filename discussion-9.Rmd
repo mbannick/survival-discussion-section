@@ -1,0 +1,397 @@
+---
+title: 'BIOST 537: Discussion 7'
+author: "Marlena Bannick"
+date: "2/23/2021"
+output:
+  beamer_presentation: default
+  html_document:
+    theme: yeti
+  ioslides_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Learning Objectives
+
+- Understand how the main methods that we've learned about in the course fit together
+- Practice interpreting the results from each of the main methods
+
+These slides are going to be focused on the concepts rather than mathematical details.
+
+## Slides
+
+- Slides are available on Canvas
+- RMarkdown can be checked out via GitHub
+
+```{sh, eval=F}
+git clone
+ https://github.com/mbannick/survival-discussion-section.git
+```
+
+Or just `git pull` if you already have it cloned!
+
+## Poll Everywhere
+
+We will use Poll Everywhere to take some quick anonymous polls
+to stay engaged!
+
+- In your browser on your phone or computer, navigate to PollEv.com/mnorwood
+- You will be prompted to do a UW single sign on with your UW login
+- Alternatively, text MNORWOOD to 22333 to join the session
+
+## Understanding Check
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Understanding Check
+
+<iframe src="https://embed.polleverywhere.com/clickable_images/wHlXBP3SNtz4o5MfCU3VV?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
+## Priorities
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Priorities
+
+<iframe src="https://embed.polleverywhere.com/discourses/G7eZBJhvlQDMqowmu2U1O?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
+## Data
+
+```{r}
+library(survival)
+library(flexsurv)
+source("fitparametric.R")
+data("diabetic")
+head(diabetic)
+```
+
+## Data
+
+The "diabetic" dataset from package `survival`
+
+- `id` subject id
+- `laser` laser type: xenon or argon
+- `age` age at diagnosis
+- `eye` a factor with levels of left right
+- `trt` treatment: 0 = no treatment, 1= laser
+- `risk` risk group of 6-12
+- `time` time to event or last follow-up
+- `status` status of 0 = censored or 1 = visual loss
+
+## Estimate a survival function
+
+If we have some survival times, potentially with censoring, how can we estimate a survival function?
+
+- *Parametric*: specify some distribution that you think the survival times follow (e.g. Weibull) and use maximum likelihood estimation to estimate the parameters of that distribution
+- *Non-parametric*: use the Kaplan-Meier ("product limit" estimator) which is the product of the hazard at each observed event time
+
+## Estimate a survival function
+
+In a parametric approach, we need to specify a parametric distribution.
+
+```{r, results=FALSE}
+diab.surv <- Surv(time=diabetic$time,
+                  event=diabetic$status)
+expo <- fitparametric(diab.surv, "exp")
+weibull <- fitparametric(diab.surv, "weibull")
+gengamma <- fitparametric(diab.surv, "gengamma")
+```
+
+## Estimate a survival function
+
+```{r, eval=TRUE}
+expo$coeff
+weibull$coeff
+gengamma$coeff
+```
+
+## Estimate a survival function
+
+In a non-parametric approach, we can use the `survfit` command to use the Kaplan-Meier estimator.
+
+```{r}
+survfit(diab.surv ~ 1)
+```
+
+## Estimate a survival function
+
+```{r, echo=FALSE}
+plot(diab.surv, conf.int=FALSE, xlab="Time",
+ylab="Survival probability", col="black", lty="solid", lwd=2) ## nonparametric
+lines(expo$fit, ci=FALSE, col="darkgreen", lty="solid", lwd=2)
+lines(weibull$fit, ci=FALSE, col="orange", lty="dashed", lwd=2)
+lines(gengamma$fit, ci=FALSE, col="blue", lty="dotted", lwd=2)
+legend("topright", c("nonparametric estimator", "exponential", "Weibull", "generalized gamma"), col=c("black", "darkgreen", "orange", "blue"), lty=c("solid", "solid", "dashed", "dotted"), lwd=rep(3, 4), cex=0.9)
+```
+
+## Estimate a cumulative hazard function
+
+If we have some survival times, potentially with censoring, how can we estimate a cumulative hazard function?
+
+- *Parametric*: We know how the cumulative hazard function and the survival function are related, and we know the formula for the survival function (since we picked a particular distribution) so we take our estimated parameters from the parametric distribution and get the survival function, then take the negative log.
+
+$$
+H(t) = -\log S(t)
+$$
+
+- *Non-parametric*: use the Nelson-Aalen estimator which is the sum of the hazards at each observed event time
+
+## Estimate a cumulative hazard function
+
+Create a function that uses the functional form of the Weibull distribution to get the cumulative hazard.
+
+```{r}
+weib.cuml.haz <- function(t, shape, scale){
+  cdf <- 1 - exp(-(t/scale)^shape)
+  surv <- 1 - cdf
+  haz <- -log(surv)
+  return(haz)
+}
+times <- seq(0, max(diabetic$time), 1)
+haz <- weib.cuml.haz(t=times, shape=weibull$coeff[2,1],
+                     scale=1/weibull$coef[1,1])
+```
+
+## Estimate a cumulative hazard function
+
+You don't need to do anything special to estimate a cumulative hazard function, you can actually just use the `survfit` object from before (since the Nelson-Aalen estimator is so related to the Kaplan-Meier estimator).
+
+## Estimate a cumulative hazard function
+
+```{r}
+plot(haz ~ times, xlab="Time", ylab="Cuml. Hazard", type='l', col='blue')
+lines(survfit(diab.surv ~ 1), fun="cumhaz")
+legend("topleft", c("parametric", "non-parametric"), col=c("blue", "black"),
+       lty=c(1, 1))
+```
+
+## Estimate a hazard function
+
+If we have some survival times, potentially with censoring, how can we estimate a hazard function?
+
+- *Parametric*: Again, we know the specific parametric form because we chose it! And we know that:
+
+$$
+h(t) = \frac{f(t)}{S(t)}
+$$
+
+- *Non-parametric*: use the Nelson-Aalen estimator, but then smooth over the differences in hazard between adjacent time points with kernel density estimation
+
+## Estimate a hazard function
+
+Create a function that uses the functional form of the Weibull distribution to get the hazard from the pdf and survival function.
+
+```{r}
+weib.haz <- function(t, shape, scale){
+  pdf <- shape/scale * (t / scale)^(shape - 1) * exp(-(t/scale)^shape)
+  surv <- exp(-(t/scale)^shape)
+  haz <- pdf / surv
+  return(haz)
+}
+times <- seq(0, max(diabetic$time), 1)
+haz <- weib.haz(t=times, shape=weibull$coeff[2,1],
+                scale=1/weibull$coef[1,1])
+```
+
+## Estimate a hazard function
+
+For a non-parametric version with kernel density estimation, you can use the package `muhaz`:
+
+```{r}
+library(muhaz)
+kde <- muhaz(diabetic$time, diabetic$status)
+```
+
+## Estimate a hazard function
+
+```{r}
+plot(kde, type='l', col='black')
+lines(haz ~ times, col='blue')
+legend("topright", c("parametric", "non-parametric"), col=c("blue", "black"),
+       lty=c(1, 1))
+```
+
+## Test for differences between two groups
+
+- *Parametric*: A few options!
+  - Fit two parametric models and perform a Wald test to test for differences in parameters
+  - Fit one parametric model with binary covariate on the hazard and perform Wald test on the $\beta$ coefficient representing the log hazard ratio
+  - Fit a parametric model with no covariates, and a parametric model with the one binary covariate and compare the two fits with a score test or likelihood ratio test
+  - For the last two approaches, could also include a confounding variable in the models.
+
+## Test for differences between two groups
+
+- *Non-parametric*:
+  - The logrank test (and all of its variants based on different weighting schemes)
+  - Stratified logrank test when there are confounding variables
+
+## Test for differences between two groups
+
+```{r}
+trt0 <- diabetic[diabetic$trt == 0, ]
+trt1 <- diabetic[diabetic$trt == 1, ]
+
+trt0.mod <- flexsurvreg(Surv(time, status) ~ 1, data=trt0, dist="exponential")
+trt1.mod <- flexsurvreg(Surv(time, status) ~ 1, data=trt1, dist="exponential")
+
+est <- trt0.mod$res["rate", "est"] - trt1.mod$res["rate", "est"]
+se <- sqrt(trt0.mod$res["rate", "se"]^2 + trt1.mod$res["rate", "se"]^2)
+
+# the Wald statistic
+w.stat <- abs(est) / se
+2 * pnorm(-abs(w.stat)) # very significant!
+```
+
+## Test for differences between two groups
+
+```{r}
+trt.mod <- flexsurvreg(Surv(time, status) ~ trt, 
+                       data=diabetic, dist="exponential")
+trt.mod # take a look at the confidence interval
+```
+
+## Test for differences between groups
+
+Check this out:
+
+```{r}
+trt.mod$coefficients["trt"]
+
+# difference in the log hazards!
+log(trt1.mod$res["rate", "est"]) - log(trt0.mod$res["rate", "est"])
+```
+
+## Test for differences between groups
+
+```{r}
+small <- flexsurvreg(Surv(time, status) ~ 1, 
+                     data=diabetic, dist="exponential")
+big <- flexsurvreg(Surv(time, status) ~ trt, 
+                   data=diabetic, dist="exponential")
+tchisq <- 2 * (big$loglik - small$loglik)
+1 - pchisq(tchisq, df=1) # very significant!
+```
+
+## Test for differences between groups
+
+Why make these parametric assumptions? Let's do a logrank test!
+
+```{r}
+survdiff(diab.surv ~ trt, data=diabetic)
+```
+
+## Test for differences between groups
+
+What if `risk` is a confounder?
+
+```{r}
+survdiff(diab.surv ~ trt + strata(risk), data=diabetic)
+```
+
+## Estimate a hazard ratio
+
+- *Parametric*: Proportional hazards model. We just did this! Estimate a parameter for the baseline hazard, and then coefficients that represent the difference in log hazard between unit differences of the predictors. $\exp(\beta)$ is a hazard ratio. All using maximum likelihood estimation. E.g. exponential:
+
+$$
+h(t) = h_0(t) \exp(\beta_1 x_1 + \cdots + \beta_p x_p) \quad h_0(t) = \lambda
+$$
+
+By including multiple $x$, the interpretation of the $\beta$ parameters is the hazard ratio comparing two groups, but where all other $x$ are held constant.
+
+## Estimate a hazard ratio
+
+- *Semi-parametric*: **Cox** proportional hazards model. Do basically the same thing, but now $h_0(t)$ is **unspecified** and a nuisance! So we don't have to make an assumption about the parametric form of survival times (e.g. exponential).
+
+We can also include multiple $x$ here to adjust for confounding. OR we can use stratified Cox proportional hazards, where each group gets its own baseline hazard that we don't estimate (nuisance parameters).
+
+## Estimate a hazard ratio
+
+We already did this for exponential, but we can get real fancy and do it for gompertz distribution.
+
+```{r}
+mod <- flexsurvreg(Surv(time, status) ~ trt, 
+                   data=diabetic, dist="gompertz")
+```
+
+Note: read the documentation for `flexsurvreg` because for some distributions it actually fits accelerated failure time models!
+
+So the interpretation is not necessarily a hazard ratio!
+
+## Estimate a hazard ratio
+
+```{r}
+mod
+```
+
+## Estimate a hazard ratio
+
+If we wanted to do this semi-parametrically (generally a wise decision), we would use `coxph`:
+
+```{r}
+coxph(diab.surv ~ trt, data=diabetic)
+```
+
+Note that we now have nothing that tells us about the baseline hazard. We didn't estimate it!
+
+## Estimate a hazard ratio
+
+What about controlling for a confounder?
+
+```{r}
+coxph(diab.surv ~ trt + risk, data=diabetic)
+```
+
+## Estimate a hazard ratio
+
+What about more **flexibly** controlling for a confounder?
+
+```{r}
+coxph(diab.surv ~ trt + strata(risk), data=diabetic)
+```
+
+## Estimate acceleration factors on time scale
+
+We've got only one option here, and it's parametric. You need to assume some parametric form for your data.
+
+Then, we can fit an accelerated failure time model, where $A(x) = \exp(\phi_1 x_1 + \cdots + \phi_p x_p)$ is your acceleration factor.
+
+$$
+S(t | x) = S_0(A(x) t)
+$$
+
+You get an "implied density" from this if you substituted $A(x) t$ in for $t$ in the typical functions (density, survival, hazard, etc.) for whatever parametric model you're working with.
+
+Note, if we parameterized $A^*(x) = \exp(-\phi_1 x_1 - \cdots + \phi_p x_p)$, then $A(x) = 1/A^*(x)$.
+
+## Estimating acceleration factors on time scale
+
+We want to estimate the $\phi$ parameters in the acceleration factor. It turns out that for the Weibull parameterization there is a direct relationship between the HR and acceleration factor.
+
+```{r}
+mod <- flexsurvreg(Surv(time, status) ~ trt, 
+                   data=diabetic, dist="weibull")
+mod$res
+```
+
+## Estimating acceleration factors on time scale
+
+If we had used `dist="exponential"`, the `flexsurvreg` function would have returned a hazard ratio.
+With `dist="weibull"` it returns an average increase in survival time (1/acceleration factor).
+
+```{r}
+exp(mod$res["trt", "est"])
+1 / exp(mod$res["trt", "est"])
+```
+
+Translates to average survival time in the treated group being 1/0.377 = 2.65 times as long as the untreated group.
+
+## Understanding Check
+
+<iframe src="https://pollev-embeds.com/mnorwood" width="800px" height="600px"></iframe>
+
+## Understanding Check
+
+<iframe src="https://embed.polleverywhere.com/clickable_images/p6IWqrBo0jEYFX4BmFwBe?controls=none&short_poll=true" width="800px" height="600px"></iframe>
+
